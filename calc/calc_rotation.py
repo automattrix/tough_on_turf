@@ -76,7 +76,10 @@ def calc_dir_change(groupdf):
 
     start_dir = df['o'].iloc[0]
     end_dir = df['o'].iloc[-1]
-    print(group_direction, start_dir, end_dir)
+    dir_change = abs(start_dir - end_dir)
+
+    # TODO pickup here, just calculated dir_change per group
+    print(group_direction, start_dir, end_dir, dir_change)
 
 
 
