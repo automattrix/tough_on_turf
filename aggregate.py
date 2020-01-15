@@ -75,7 +75,7 @@ def main():
         # Get unique playkeys
         play_keys = player.playerkeys()
 
-#
+
         # TODO create an empty table for writing results from the following calcuations
         # Calculate data for each play
         for play in play_keys:
