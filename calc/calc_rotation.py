@@ -140,7 +140,7 @@ def calc_pct_of_max(dir_changes, mindir, maxdir, minduration, maxduration, dir_d
         durationvalue = i[2]
         #print(dirvalue)
         pct_change_max = (dirvalue / maxdir) * 100
-        pct_duration_max = (durationvalue / maxduration)
+        pct_duration_max = (durationvalue / maxduration) * 100
         direction_dict.update({dirgroup: {}})
         direction_dict[dirgroup].update({"pct_ch_max": pct_change_max})
         direction_dict[dirgroup].update({"pct_dur_max": pct_duration_max})
