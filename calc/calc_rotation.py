@@ -27,17 +27,19 @@ def create_table_dirchange():
     group_sql = """
     CREATE TABLE dir_change (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        dirvalue float)"""
+        dirvalue float,
+        timesum float,
+        num_values int)"""
     cur.execute(group_sql)
     con.close()
 
 
-def write_dir_change(dir_value): # TODO make a generic sql write function
+def write_dir_change(dir_value, timesum, num_values):  # TODO make a generic sql write function
     insert_value = float(dir_value)
     con = connect_db()
     cur = con.cursor()
 
-    write_sql = "insert or ignore into dir_change (dirvalue) values ({});".format(insert_value)
+    write_sql = "insert or ignore into dir_change (dirvalue, timesum, num_values) values ({},{},{});".format(insert_value, timesum, num_values)
     cur.execute(write_sql)
     con.commit()
     con.close()
@@ -58,7 +60,7 @@ def write_current_group(group_value):
 def read_dirchange():
     con = connect_db()
     cur = con.cursor()
-    read_sql = "select id, dirvalue from dir_change ORDER BY id desc;"
+    read_sql = "select id, dirvalue, timesum, num_values from dir_change ORDER BY id desc;"
     cur.execute(read_sql)
     current_group = cur.fetchall()
     # print(current_group)
@@ -122,9 +124,34 @@ def calc_dir_change(groupdf):
     end_dir = df['o'].iloc[-1]
     dir_change = abs(start_dir - end_dir)
 
-    write_dir_change(dir_value=dir_change)
-    # TODO pickup here, just calculated dir_change per group
+    write_dir_change(dir_value=dir_change, timesum=time_sum, num_values=num_measurements)
     print(group_direction, start_dir, end_dir, dir_change)
+
+
+def calc_pct_of_max(dir_changes, mindir, maxdir, minduration, maxduration, dir_dict):
+    # Input if list of tuples - 0 is id, 1 is dir change
+
+    # First calculate pct max for dir change
+    # THen calculate pct of max for duration
+    direction_dict = {}
+    for i in dir_changes:
+        dirgroup = i[0]
+        dirvalue = i[1]
+        durationvalue = i[2]
+        #print(dirvalue)
+        pct_change_max = (dirvalue / maxdir) * 100
+        pct_duration_max = (durationvalue / maxduration)
+        direction_dict.update({dirgroup: {}})
+        direction_dict[dirgroup].update({"pct_ch_max": pct_change_max})
+        direction_dict[dirgroup].update({"pct_dur_max": pct_duration_max})
+
+        #print(dirvalue, pct_change_max)
+    #sorted_dir_dict = sorted(direction_dict)
+    #print(sorted_dir_dict)
+    print(direction_dict)
+    # TODO pick up here, sort dict by group and then return dict
+
+
 
 
 def pos_neg_orientation(orientation):
@@ -170,20 +197,32 @@ def calc_rotation(df):
     # Calculate change in direction ---------
     unique_groups = df['groups'].unique()
 
-    # Create dataframe for each group
+
+    # Create empty dict for storing dataframes
+    dir_dict = {}
+    # Create dataframe for each group and store in dict
     for group in unique_groups:
         group_df = df.loc[df['groups'] == group]
+        dir_dict.update({group: group_df})
         calc_dir_change(groupdf=group_df)
 
     # Calculate min and max dir change
-    #test = read_dirchange()
-    #print(test)
+    # Sorted by dir change
+    dir_change_sort = sorted([i for i in read_dirchange()], key=lambda x: x[1])
+    min_dir = float(dir_change_sort[0][1])
+    max_dir = float(dir_change_sort[-1][1])
+    #print(dir_change_sort)
     #exit()
-    dir_changes = sorted([i for i in read_dirchange()], key=lambda x: x[1])
-    min_dir = dir_changes[0]
-    max_dir = dir_changes[-1]
-    print(dir_changes)
-    print(min_dir, max_dir)
+
+    dir_duration_sort = sorted(dir_change_sort, key=lambda y: y[2])
+    min_duration = float(dir_duration_sort[0][2])
+    max_duration = float(dir_duration_sort[-1][2])
+    #print(dir_duration_sort)
+    print(min_dir, max_dir, min_duration, max_duration)
+    #exit()
+    dir_pct = calc_pct_of_max(dir_changes=dir_change_sort, mindir=min_dir, maxdir=max_dir,
+                              minduration=min_duration, maxduration=max_duration, dir_dict=dir_dict)
+    #print(dir_pct)
 
     # Print summary
     #print((df[['pos_neg_orientation','direction_shift', 'groups', 'o']].head()))
