@@ -16,9 +16,6 @@ class Player:
         unique_playkeys = self.player_data['PlayKey'].unique()
         return unique_playkeys
 
-    #def calc_speed(self):
-        #print("Calculating player speed")
-
     def calc_rotation_score_body(self):
         print("Calculating body rotation score")
         # For rotation score, if player rotation continues in the same direction, consider that a series
@@ -83,19 +80,29 @@ def main():
             # Load the data for the play
             play_df = player.player_data.loc[player.player_data['PlayKey'] == play]
 
-            # Calculate speed averages
+            # UNCOMMENT FOR FINAL
+            # Calculate speed averages ---------------------------
             # speed = calc_speed.calc_avg(play_df)
-            # print(speed)
+            # print(speed) ---------------------------------------
 
 
-            # Calculate body rotation
+            # Calculate head and body rotation
 
-            body_rotation = calc_rotation.calc_rotation(play_df)
+            # o = head, dir = body
+            head_rotation = calc_rotation.calc_rotation(play_df, dfkey='o')
+            print(head_rotation)
+            body_rotation = calc_rotation.calc_rotation(play_df, dfkey='dir')
+            print(body_rotation)
 
-            exit()
+            # TODO sort by fastest direction change per sec
+            # TODO sort by biggest change in direction
+            # TODO sort by longest change in direction
             # Create a table of results for each play
 
 
+            # TODO compare head dir vs body dir
+            # TODO create risk factor
+            exit()
 
 if __name__ == '__main__':
     main()
