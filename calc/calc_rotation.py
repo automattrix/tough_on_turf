@@ -128,7 +128,7 @@ def calc_dir_change(groupdf):
     print(group_direction, start_dir, end_dir, dir_change)
 
 
-def calc_pct_of_max(dir_changes, mindir, maxdir, minduration, maxduration, dir_dict):
+def calc_pct_of_max(dir_changes, maxdir, maxduration):
     # Input if list of tuples - 0 is id, 1 is dir change
 
     # First calculate pct max for dir change
@@ -138,20 +138,14 @@ def calc_pct_of_max(dir_changes, mindir, maxdir, minduration, maxduration, dir_d
         dirgroup = i[0]
         dirvalue = i[1]
         durationvalue = i[2]
-        #print(dirvalue)
+
         pct_change_max = (dirvalue / maxdir) * 100
         pct_duration_max = (durationvalue / maxduration) * 100
         direction_dict.update({dirgroup: {}})
         direction_dict[dirgroup].update({"pct_ch_max": pct_change_max})
         direction_dict[dirgroup].update({"pct_dur_max": pct_duration_max})
 
-        #print(dirvalue, pct_change_max)
-    #sorted_dir_dict = sorted(direction_dict)
-    #print(sorted_dir_dict)
-    print(direction_dict)
-    # TODO pick up here, sort dict by group and then return dict
-
-
+    return direction_dict
 
 
 def pos_neg_orientation(orientation):
@@ -208,21 +202,19 @@ def calc_rotation(df):
 
     # Calculate min and max dir change
     # Sorted by dir change
-    dir_change_sort = sorted([i for i in read_dirchange()], key=lambda x: x[1])
+    dir_change_sort = sorted([i for i in read_dirchange()], key=lambda x: x[1])  # Sorted by biggest change in direction
     min_dir = float(dir_change_sort[0][1])
     max_dir = float(dir_change_sort[-1][1])
-    #print(dir_change_sort)
-    #exit()
 
-    dir_duration_sort = sorted(dir_change_sort, key=lambda y: y[2])
+    dir_duration_sort = sorted(dir_change_sort, key=lambda y: y[2])  # Sorted by duration of direction change
     min_duration = float(dir_duration_sort[0][2])
     max_duration = float(dir_duration_sort[-1][2])
-    #print(dir_duration_sort)
+
     print(min_dir, max_dir, min_duration, max_duration)
-    #exit()
-    dir_pct = calc_pct_of_max(dir_changes=dir_change_sort, mindir=min_dir, maxdir=max_dir,
-                              minduration=min_duration, maxduration=max_duration, dir_dict=dir_dict)
-    #print(dir_pct)
+
+    dir_pct = calc_pct_of_max(dir_changes=dir_change_sort, maxdir=max_dir,
+                              maxduration=max_duration)
+    print(dir_pct)
 
     # Print summary
     #print((df[['pos_neg_orientation','direction_shift', 'groups', 'o']].head()))
