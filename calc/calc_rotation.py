@@ -150,7 +150,7 @@ def calc_pct_of_max(dir_changes, maxdir, maxduration):
         direction_dict['groups'].update({dirgroup: {}})
         direction_dict['groups'][dirgroup].update({"pct_ch_max": pct_change_max})
         direction_dict['groups'][dirgroup].update({"pct_dur_max": pct_duration_max})
-        direction_dict['groups'][dirgroup].update({"dir_ch_sec": dir_ch_sec})
+        direction_dict['groups'][dirgroup].update({"dir_ch_per_sec": dir_ch_sec})
 
     return direction_dict
 
@@ -165,7 +165,7 @@ def pos_neg_orientation(orientation):
         return "no change"
 
 
-def calc_rotation(df):
+def calc_rotation(df, dfkey):
     if os.path.exists('./groupdb.sqlite'):
         clear_db()
         write_current_group(group_value=0)
@@ -176,14 +176,14 @@ def calc_rotation(df):
         write_current_group(group_value=0)
 
     print("Calculating Rotation")
-    print(df['o'].head())
+    print(df[f'{dfkey}'].head())
     df = df.copy()
     # Calculate difference in orientation between measurements
-    df["o_delta"] = df['o'].diff().fillna(0)
-    print(df['o_delta'])
+    df["delta"] = df[f'{dfkey}'].diff().fillna(0)
+    print(df['delta'])
 
     # Calculate left of right change in direction
-    df['pos_neg_orientation'] = df['o_delta'].apply(pos_neg_orientation)
+    df['pos_neg_orientation'] = df['delta'].apply(pos_neg_orientation)
     print(df['pos_neg_orientation'].head())
 
     # Create new column shifted up by 1 row to compare current dir measurement to next dir measurement
@@ -219,5 +219,4 @@ def calc_rotation(df):
     print(min_dir, max_dir, min_duration, max_duration)
 
     dir_dict = calc_pct_of_max(dir_changes=dir_change_sort, maxdir=max_dir, maxduration=max_duration)
-    print(dir_dict)
     return dir_dict
