@@ -128,6 +128,7 @@ def calc_dir_change(groupdf):
     print(group_direction, start_dir, end_dir, dir_change)
 
 
+# TODO rename function to reflect calculations inside -- not just percentages
 def calc_pct_of_max(dir_changes, maxdir, maxduration):
     # Input if list of tuples - 0 is id, 1 is dir change
 
@@ -139,11 +140,17 @@ def calc_pct_of_max(dir_changes, maxdir, maxduration):
         dirvalue = i[1]
         durationvalue = i[2]
 
-        pct_change_max = (dirvalue / maxdir) * 100
-        pct_duration_max = (durationvalue / maxduration) * 100
+        pct_change_max = (dirvalue / maxdir) * 100  # pct of max dir change
+        pct_duration_max = (durationvalue / maxduration) * 100  # pct of max duration of direction change
+        dir_ch_sec = dirvalue / durationvalue  # how quickly player changed direction
         direction_dict.update({dirgroup: {}})
         direction_dict[dirgroup].update({"pct_ch_max": pct_change_max})
         direction_dict[dirgroup].update({"pct_dur_max": pct_duration_max})
+        direction_dict[dirgroup].update({"dir_ch_sec": pct_duration_max})
+
+
+
+    exit()
 
     return direction_dict
 
@@ -185,12 +192,11 @@ def calc_rotation(df):
 
     # Calculate groups ----------
     # A direction value is considered to be in the same group if the player direction has not changed
-    df['groups'] = df[['pos_neg_orientation','direction_shift']].apply(
+    df['groups'] = df[['pos_neg_orientation', 'direction_shift']].apply(
         lambda i: calc_groups(current_direction=i['pos_neg_orientation'], next_direction=i['direction_shift']), axis=1)
 
     # Calculate change in direction ---------
     unique_groups = df['groups'].unique()
-
 
     # Create empty dict for storing dataframes
     dir_dict = {}
@@ -218,3 +224,6 @@ def calc_rotation(df):
 
     # Print summary
     #print((df[['pos_neg_orientation','direction_shift', 'groups', 'o']].head()))
+
+
+    # TODO Need to compare biggest change in direction to duration to get the aggressiveness of the directino change
