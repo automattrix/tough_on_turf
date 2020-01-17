@@ -1,8 +1,6 @@
 import pandas as pd
 import sqlite3
 import os
-import datetime
-import time
 
 
 def connect_db():
@@ -39,7 +37,9 @@ def write_dir_change(dir_value, timesum, num_values):  # TODO make a generic sql
     con = connect_db()
     cur = con.cursor()
 
-    write_sql = "insert or ignore into dir_change (dirvalue, timesum, num_values) values ({},{},{});".format(insert_value, timesum, num_values)
+    write_sql = "insert or ignore into dir_change " \
+                "(dirvalue, timesum, num_values) " \
+                "values ({},{},{});".format(insert_value, timesum, num_values)
     cur.execute(write_sql)
     con.commit()
     con.close()
@@ -49,9 +49,10 @@ def write_current_group(group_value):
     insert_value = int(group_value)
     con = connect_db()
     cur = con.cursor()
-    epoch = str(time.time())
 
-    write_sql = "insert or ignore into dirgroups (groupvalue) values ({});".format(insert_value)
+    write_sql = "insert or ignore into dirgroups " \
+                "(groupvalue) " \
+                "values ({});".format(insert_value)
     cur.execute(write_sql)
     con.commit()
     con.close()
@@ -98,7 +99,6 @@ def clear_db():
 
 def calc_groups(current_direction, next_direction):
     tmp_group = read_current_group()
-    #print(tmp_group)
 
     # Get current group value from database
     current_group = int(tmp_group[1])
@@ -199,11 +199,11 @@ def calc_rotation(df):
     unique_groups = df['groups'].unique()
 
     # Create empty dict for storing dataframes
-    dir_dict = {}
+    dir_dict_tmp = {}
     # Create dataframe for each group and store in dict
     for group in unique_groups:
         group_df = df.loc[df['groups'] == group]
-        dir_dict.update({group: group_df})
+        dir_dict_tmp.update({group: group_df})
         calc_dir_change(groupdf=group_df)
 
     # Calculate min and max dir change
@@ -218,12 +218,6 @@ def calc_rotation(df):
 
     print(min_dir, max_dir, min_duration, max_duration)
 
-    dir_pct = calc_pct_of_max(dir_changes=dir_change_sort, maxdir=max_dir,
-                              maxduration=max_duration)
-    print(dir_pct)
-
-    # Print summary
-    #print((df[['pos_neg_orientation','direction_shift', 'groups', 'o']].head()))
-
-
-    # TODO Need to compare biggest change in direction to duration to get the aggressiveness of the directino change
+    dir_dict = calc_pct_of_max(dir_changes=dir_change_sort, maxdir=max_dir, maxduration=max_duration)
+    print(dir_dict)
+    return dir_dict
