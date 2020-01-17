@@ -135,6 +135,10 @@ def calc_pct_of_max(dir_changes, maxdir, maxduration):
     # First calculate pct max for dir change
     # THen calculate pct of max for duration
     direction_dict = {}
+    direction_dict.update({"max_dir_change": maxdir})
+    direction_dict.update({"max_duration": maxduration})
+
+    direction_dict.update({"groups": {}})
     for i in dir_changes:
         dirgroup = i[0]
         dirvalue = i[1]
@@ -143,10 +147,10 @@ def calc_pct_of_max(dir_changes, maxdir, maxduration):
         pct_change_max = (dirvalue / maxdir) * 100  # pct of max dir change
         pct_duration_max = (durationvalue / maxduration) * 100  # pct of max duration of direction change
         dir_ch_sec = dirvalue / durationvalue  # how quickly player changed direction
-        direction_dict.update({dirgroup: {}})
-        direction_dict[dirgroup].update({"pct_ch_max": pct_change_max})
-        direction_dict[dirgroup].update({"pct_dur_max": pct_duration_max})
-        direction_dict[dirgroup].update({"dir_ch_sec": dir_ch_sec})
+        direction_dict['groups'].update({dirgroup: {}})
+        direction_dict['groups'][dirgroup].update({"pct_ch_max": pct_change_max})
+        direction_dict['groups'][dirgroup].update({"pct_dur_max": pct_duration_max})
+        direction_dict['groups'][dirgroup].update({"dir_ch_sec": dir_ch_sec})
 
     return direction_dict
 
