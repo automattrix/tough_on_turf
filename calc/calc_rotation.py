@@ -203,7 +203,6 @@ def calc_rotation(df, dfkey):
 
     # Create new column shifted up by 1 row to compare current dir measurement to next dir measurement
     df['direction_shift'] = df['pos_neg_orientation'].shift(periods=-1, fill_value="no change")
-    
 
     # Calculate groups ----------
     # A direction value is considered to be in the same group if the player direction has not changed
