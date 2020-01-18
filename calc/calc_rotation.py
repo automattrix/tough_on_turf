@@ -165,6 +165,20 @@ def pos_neg_orientation(orientation):
         return "no change"
 
 
+def calc_angle_diff(o, dir):
+    o_diff = (360 - o)
+    dir_diff = (360 - dir)
+    abs_diff = abs(o_diff - dir_diff)
+    tmp_angle_diff = 360 - abs_diff
+
+    if tmp_angle_diff > 180:
+        angle_diff = 360 - tmp_angle_diff
+    else:
+        angle_diff = tmp_angle_diff
+
+    return angle_diff
+
+
 def calc_rotation(df, dfkey):
     if os.path.exists('./groupdb.sqlite'):
         clear_db()
@@ -176,19 +190,20 @@ def calc_rotation(df, dfkey):
         write_current_group(group_value=0)
 
     print(f"Calculating Rotation for {dfkey}")
-    #print(df[f'{dfkey}'].head())
     df = df.copy()
+
+    # Calculate relative difference in degrees between head and body orientation
+    df['head_v_body_diff'] = df[['o', 'dir']].apply(lambda x: calc_angle_diff(o=x['o'], dir=x['dir']), axis=1)
+
     # Calculate difference in orientation between measurements
     df["delta"] = df[f'{dfkey}'].diff().fillna(0)
-    #print(df['delta'])
 
     # Calculate left of right change in direction
     df['pos_neg_orientation'] = df['delta'].apply(pos_neg_orientation)
-    #print(df['pos_neg_orientation'].head())
 
     # Create new column shifted up by 1 row to compare current dir measurement to next dir measurement
     df['direction_shift'] = df['pos_neg_orientation'].shift(periods=-1, fill_value="no change")
-    #print(df[['pos_neg_orientation', 'direction_shift']].head())
+    
 
     # Calculate groups ----------
     # A direction value is considered to be in the same group if the player direction has not changed
