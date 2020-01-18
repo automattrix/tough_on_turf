@@ -125,7 +125,7 @@ def calc_dir_change(groupdf):
     dir_change = abs(start_dir - end_dir)
 
     write_dir_change(dir_value=dir_change, timesum=time_sum, num_values=num_measurements)
-    print(group_direction, start_dir, end_dir, dir_change)
+    #print(group_direction, start_dir, end_dir, dir_change)
 
 
 # TODO rename function to reflect calculations inside -- not just percentages
@@ -175,20 +175,20 @@ def calc_rotation(df, dfkey):
         create_table_dirchange()
         write_current_group(group_value=0)
 
-    print("Calculating Rotation")
-    print(df[f'{dfkey}'].head())
+    print(f"Calculating Rotation for {dfkey}")
+    #print(df[f'{dfkey}'].head())
     df = df.copy()
     # Calculate difference in orientation between measurements
     df["delta"] = df[f'{dfkey}'].diff().fillna(0)
-    print(df['delta'])
+    #print(df['delta'])
 
     # Calculate left of right change in direction
     df['pos_neg_orientation'] = df['delta'].apply(pos_neg_orientation)
-    print(df['pos_neg_orientation'].head())
+    #print(df['pos_neg_orientation'].head())
 
     # Create new column shifted up by 1 row to compare current dir measurement to next dir measurement
     df['direction_shift'] = df['pos_neg_orientation'].shift(periods=-1, fill_value="no change")
-    print(df[['pos_neg_orientation', 'direction_shift']].head())
+    #print(df[['pos_neg_orientation', 'direction_shift']].head())
 
     # Calculate groups ----------
     # A direction value is considered to be in the same group if the player direction has not changed
@@ -216,7 +216,7 @@ def calc_rotation(df, dfkey):
     min_duration = float(dir_duration_sort[0][2])
     max_duration = float(dir_duration_sort[-1][2])
 
-    print(min_dir, max_dir, min_duration, max_duration)
+    #print(min_dir, max_dir, min_duration, max_duration)
 
     dir_dict = calc_pct_of_max(dir_changes=dir_change_sort, maxdir=max_dir, maxduration=max_duration)
     return dir_dict

@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from calc import calc_speed, calc_rotation
+from calc import calc_speed, calc_rotation, calc_compare
 
 class Player:
     def __init__(self, csv_path):
@@ -90,19 +90,20 @@ def main():
 
             # o = head, dir = body
             head_rotation = calc_rotation.calc_rotation(play_df, dfkey='o')
-            print(head_rotation)
-            body_rotation = calc_rotation.calc_rotation(play_df, dfkey='dir')
-            print(body_rotation)
+            #print(head_rotation)
 
-            # TODO sort by fastest direction change per sec
-            # TODO sort by biggest change in direction
-            # TODO sort by longest change in direction
+            body_rotation = calc_rotation.calc_rotation(play_df, dfkey='dir')
+            #print(body_rotation)
+
             # Create a table of results for each play
+            head_vs_body = calc_compare.compare_rotation(d1=head_rotation, d2=body_rotation)
+
 
 
             # TODO compare head dir vs body dir
             # TODO create risk factor
             exit()
+
 
 if __name__ == '__main__':
     main()
