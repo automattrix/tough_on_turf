@@ -175,7 +175,7 @@ def calc_angle_diff(o, dir):
         angle_diff = 360 - tmp_angle_diff
     else:
         angle_diff = tmp_angle_diff
-
+    #
     return angle_diff
 
 
