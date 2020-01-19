@@ -16,6 +16,6 @@ def compare_rotation(d1, d2):
     # d2 body
 
     #print(d1.keys())
-    #print(d1['groups'])
+    print(d1['groups'])
 
     d1_order_group = ''
