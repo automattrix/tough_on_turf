@@ -14,7 +14,8 @@ def create_table():
     group_sql = """
     CREATE TABLE dirgroups (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        groupvalue integer)"""
+        groupvalue integer,
+        dirtype text)"""
     cur.execute(group_sql)
     con.close()
 
@@ -26,6 +27,7 @@ def create_table_dirchange():
     CREATE TABLE dir_change (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         dirvalue float,
+        dirtype text,
         timesum float,
         num_values int,
         direction text)"""
@@ -34,27 +36,25 @@ def create_table_dirchange():
     con.close()
 
 
-def write_dir_change(dir_value, timesum, num_values, direction):  # TODO make a generic sql write function
+def write_dir_change(dir_value, dirtype, timesum, num_values, direction):  # TODO make a generic sql write function
     insert_value = float(dir_value)
     con = connect_db()
     cur = con.cursor()
 
-    parameters = (insert_value, timesum, num_values, direction)
-    cur.execute("INSERT OR IGNORE INTO dir_change VALUES (NULL, ?, ?, ?, ?)", parameters)
+    parameters = (insert_value, dirtype, timesum, num_values, direction)
+    cur.execute("INSERT OR IGNORE INTO dir_change VALUES (NULL, ?, ?, ?, ?, ?)", parameters)
 
     con.commit()
     con.close()
 
 
-def write_current_group(group_value):
+def write_current_group(group_value, direction_type):
     insert_value = int(group_value)
     con = connect_db()
     cur = con.cursor()
+    parameters = (insert_value, direction_type)
+    cur.execute("INSERT OR IGNORE INTO dirgroups VALUES (NULL, ?, ?)", parameters)
 
-    write_sql = "insert or ignore into dirgroups " \
-                "(groupvalue) " \
-                "values ({});".format(insert_value)
-    cur.execute(write_sql)
     con.commit()
     con.close()
 
@@ -62,7 +62,7 @@ def write_current_group(group_value):
 def read_dirchange():
     con = connect_db()
     cur = con.cursor()
-    read_sql = "select id, dirvalue, timesum, num_values, direction from dir_change ORDER BY id desc;"
+    read_sql = "select id, dirvalue, timesum, num_values, direction, dirtype from dir_change ORDER BY id desc;"
     cur.execute(read_sql)
     current_group = cur.fetchall()
     # print(current_group)
@@ -72,7 +72,7 @@ def read_dirchange():
 def read_current_group():
     con = connect_db()
     cur = con.cursor()
-    read_sql = "select id, groupvalue from dirgroups ORDER BY id desc LIMIT 1;"
+    read_sql = "select id, groupvalue, dirtype from dirgroups ORDER BY id desc LIMIT 1;"
     cur.execute(read_sql)
     current_group = cur.fetchone()
     # print(current_group)
@@ -98,7 +98,7 @@ def clear_db():
     con.close()
 
 
-def calc_groups(current_direction, next_direction):
+def calc_groups(current_direction, next_direction, dfkey):
     tmp_group = read_current_group()
 
     # Get current group value from database
@@ -110,22 +110,22 @@ def calc_groups(current_direction, next_direction):
         return current_group
     else:
         next_group = current_group + 1
-        write_current_group(group_value=next_group)
+        write_current_group(group_value=next_group, direction_type=dfkey)
         return next_group
 
 
-def calc_dir_change(groupdf):
+def calc_dir_change(groupdf, dfkey):
     df = groupdf
 
     group_direction = df['direction_shift'].iloc[0]
     time_sum = df['time_interval'].sum()
     num_measurements = len(df.index)
 
-    start_dir = df['o'].iloc[0]
-    end_dir = df['o'].iloc[-1]
+    start_dir = df[dfkey].iloc[0]
+    end_dir = df[dfkey].iloc[-1]
     dir_change = abs(start_dir - end_dir)
 
-    write_dir_change(dir_value=dir_change, timesum=time_sum, num_values=num_measurements, direction=group_direction)
+    write_dir_change(dir_value=dir_change, timesum=time_sum, num_values=num_measurements, direction=group_direction, dirtype=dfkey)
     #print(group_direction, start_dir, end_dir, dir_change)
 
 
@@ -187,12 +187,12 @@ def calc_angle_diff(o, dir):
 def calc_rotation(df, dfkey):
     if os.path.exists('./groupdb.sqlite'):
         clear_db()
-        write_current_group(group_value=0)
+        write_current_group(group_value=0, direction_type=dfkey)
     else:
         # TODO make a db init function to create all the required tables
         create_table()
         create_table_dirchange()
-        write_current_group(group_value=0)
+        write_current_group(group_value=0, direction_type=dfkey)
 
     print(f"Calculating Rotation for {dfkey}")
     df = df.copy()
@@ -201,7 +201,7 @@ def calc_rotation(df, dfkey):
     df['head_v_body_diff'] = df[['o', 'dir']].apply(lambda x: calc_angle_diff(o=x['o'], dir=x['dir']), axis=1)
 
     # Calculate difference in orientation between measurements
-    df["delta"] = df[f'{dfkey}'].diff().fillna(0)
+    df["delta"] = df[dfkey].diff().fillna(0)
 
     # Calculate left of right change in direction
     df['pos_neg_orientation'] = df['delta'].apply(pos_neg_orientation)
@@ -212,22 +212,23 @@ def calc_rotation(df, dfkey):
     # Calculate groups ----------
     # A direction value is considered to be in the same group if the player direction has not changed
     df['groups'] = df[['pos_neg_orientation', 'direction_shift']].apply(
-        lambda i: calc_groups(current_direction=i['pos_neg_orientation'], next_direction=i['direction_shift']), axis=1)
+        lambda i: calc_groups(current_direction=i['pos_neg_orientation'], next_direction=i['direction_shift'], dfkey=dfkey), axis=1)
 
     # Calculate change in direction ---------
     unique_groups = df['groups'].unique()
 
     # Create empty dict for storing dataframes
-    dir_dict_tmp = {}
+    #dir_dict_tmp = {}
     # Create dataframe for each group and store in dict
     for group in unique_groups:
         group_df = df.loc[df['groups'] == group]
-        dir_dict_tmp.update({group: group_df})
-        calc_dir_change(groupdf=group_df)
+        #dir_dict_tmp.update({group: group_df})
+        calc_dir_change(groupdf=group_df, dfkey=dfkey)
 
     # Calculate min and max dir change
     # Sorted by dir change
     dir_change_sort = sorted([i for i in read_dirchange()], key=lambda x: x[1])  # Sorted by biggest change in direction
+    print(dir_change_sort)
     min_dir = float(dir_change_sort[0][1])
     max_dir = float(dir_change_sort[-1][1])
 
