@@ -1,7 +1,7 @@
 import pandas as pd
 import sqlite3
 import os
-
+import database
 
 def connect_db():
     con = sqlite3.connect('./groupdb.sqlite')
@@ -27,20 +27,21 @@ def create_table_dirchange():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         dirvalue float,
         timesum float,
-        num_values int)"""
+        num_values int,
+        direction text)"""
     cur.execute(group_sql)
+    con.commit()
     con.close()
 
 
-def write_dir_change(dir_value, timesum, num_values):  # TODO make a generic sql write function
+def write_dir_change(dir_value, timesum, num_values, direction):  # TODO make a generic sql write function
     insert_value = float(dir_value)
     con = connect_db()
     cur = con.cursor()
 
-    write_sql = "insert or ignore into dir_change " \
-                "(dirvalue, timesum, num_values) " \
-                "values ({},{},{});".format(insert_value, timesum, num_values)
-    cur.execute(write_sql)
+    parameters = (insert_value, timesum, num_values, direction)
+    cur.execute("INSERT OR IGNORE INTO dir_change VALUES (NULL, ?, ?, ?, ?)", parameters)
+
     con.commit()
     con.close()
 
@@ -61,7 +62,7 @@ def write_current_group(group_value):
 def read_dirchange():
     con = connect_db()
     cur = con.cursor()
-    read_sql = "select id, dirvalue, timesum, num_values from dir_change ORDER BY id desc;"
+    read_sql = "select id, dirvalue, timesum, num_values, direction from dir_change ORDER BY id desc;"
     cur.execute(read_sql)
     current_group = cur.fetchall()
     # print(current_group)
@@ -124,7 +125,7 @@ def calc_dir_change(groupdf):
     end_dir = df['o'].iloc[-1]
     dir_change = abs(start_dir - end_dir)
 
-    write_dir_change(dir_value=dir_change, timesum=time_sum, num_values=num_measurements)
+    write_dir_change(dir_value=dir_change, timesum=time_sum, num_values=num_measurements, direction=group_direction)
     #print(group_direction, start_dir, end_dir, dir_change)
 
 
@@ -143,11 +144,15 @@ def calc_pct_of_max(dir_changes, maxdir, maxduration):
         dirgroup = i[0]
         dirvalue = i[1]
         durationvalue = i[2]
+        num_values = i[3]
+        direction = i[4]
 
         pct_change_max = (dirvalue / maxdir) * 100  # pct of max dir change
         pct_duration_max = (durationvalue / maxduration) * 100  # pct of max duration of direction change
         dir_ch_sec = dirvalue / durationvalue  # how quickly player changed direction
         direction_dict['groups'].update({dirgroup: {}})
+        direction_dict['groups'][dirgroup].update({"direction": direction})
+        direction_dict['groups'][dirgroup].update({"num_values": num_values})
         direction_dict['groups'][dirgroup].update({"pct_ch_max": pct_change_max})
         direction_dict['groups'][dirgroup].update({"pct_dur_max": pct_duration_max})
         direction_dict['groups'][dirgroup].update({"dir_ch_per_sec": dir_ch_sec})
