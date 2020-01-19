@@ -19,7 +19,7 @@ def create_table():
     cur.execute(group_sql)
     con.close()
 
-
+# TODO rename function and db table to reflect what is being written
 def create_table_dirchange():
     con = connect_db()
     cur = con.cursor()
@@ -30,19 +30,20 @@ def create_table_dirchange():
         dirtype text,
         timesum float,
         num_values int,
-        direction text)"""
+        direction text,
+        anglediff float)"""
     cur.execute(group_sql)
     con.commit()
     con.close()
 
 
-def write_dir_change(dir_value, dirtype, timesum, num_values, direction):  # TODO make a generic sql write function
+def write_dir_change(dir_value, dirtype, timesum, num_values, direction, anglediff):  # TODO make a generic sql write function
     insert_value = float(dir_value)
     con = connect_db()
     cur = con.cursor()
 
-    parameters = (insert_value, dirtype, timesum, num_values, direction)
-    cur.execute("INSERT OR IGNORE INTO dir_change VALUES (NULL, ?, ?, ?, ?, ?)", parameters)
+    parameters = (insert_value, dirtype, timesum, num_values, direction, anglediff)
+    cur.execute("INSERT OR IGNORE INTO dir_change VALUES (NULL, ?, ?, ?, ?, ?, ?)", parameters)
 
     con.commit()
     con.close()
@@ -62,7 +63,7 @@ def write_current_group(group_value, direction_type):
 def read_dirchange():
     con = connect_db()
     cur = con.cursor()
-    read_sql = "select id, dirvalue, timesum, num_values, direction, dirtype from dir_change ORDER BY id desc;"
+    read_sql = "select id, dirvalue, timesum, num_values, direction, dirtype, anglediff from dir_change ORDER BY id desc;"
     cur.execute(read_sql)
     current_group = cur.fetchall()
     # print(current_group)
@@ -125,8 +126,12 @@ def calc_dir_change(groupdf, dfkey):
     end_dir = df[dfkey].iloc[-1]
     dir_change = abs(start_dir - end_dir)
 
-    write_dir_change(dir_value=dir_change, timesum=time_sum, num_values=num_measurements, direction=group_direction, dirtype=dfkey)
-    #print(group_direction, start_dir, end_dir, dir_change)
+    relative_angle_min = df['head_v_body_diff'].min()
+    relative_angle_max = df['head_v_body_diff'].max()
+    relative_angle_diff = abs(relative_angle_max - relative_angle_min)
+
+    write_dir_change(dir_value=dir_change, timesum=time_sum, num_values=num_measurements,
+                     direction=group_direction, dirtype=dfkey, anglediff=relative_angle_diff)
 
 
 # TODO rename function to reflect calculations inside -- not just percentages
@@ -146,6 +151,8 @@ def calc_pct_of_max(dir_changes, maxdir, maxduration):
         durationvalue = i[2]
         num_values = i[3]
         direction = i[4]
+        dirtype = i[5]
+        angle_diff = i[6]
 
         pct_change_max = (dirvalue / maxdir) * 100  # pct of max dir change
         pct_duration_max = (durationvalue / maxduration) * 100  # pct of max duration of direction change
@@ -156,6 +163,8 @@ def calc_pct_of_max(dir_changes, maxdir, maxduration):
         direction_dict['groups'][dirgroup].update({"pct_ch_max": pct_change_max})
         direction_dict['groups'][dirgroup].update({"pct_dur_max": pct_duration_max})
         direction_dict['groups'][dirgroup].update({"dir_ch_per_sec": dir_ch_sec})
+        direction_dict['groups'][dirgroup].update({"dirtype": dirtype})
+        direction_dict['groups'][dirgroup].update({"angle_diff": angle_diff})
 
     return direction_dict
 
@@ -228,7 +237,6 @@ def calc_rotation(df, dfkey):
     # Calculate min and max dir change
     # Sorted by dir change
     dir_change_sort = sorted([i for i in read_dirchange()], key=lambda x: x[1])  # Sorted by biggest change in direction
-    print(dir_change_sort)
     min_dir = float(dir_change_sort[0][1])
     max_dir = float(dir_change_sort[-1][1])
 
