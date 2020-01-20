@@ -31,19 +31,26 @@ def create_table_dirchange():
         timesum float,
         num_values int,
         direction text,
-        anglediff float)"""
+        rel_ang_diff_start float,
+        rel_ang_diff_end float,
+        rel_ang_diff_change float,
+        rel_ang_min float,
+        rel_ang_max float,
+        rel_ang_diff float)"""
     cur.execute(group_sql)
     con.commit()
     con.close()
 
 
-def write_dir_change(dir_value, dirtype, timesum, num_values, direction, anglediff):  # TODO make a generic sql write function
+def write_dir_change(dir_value, dirtype, timesum, num_values, direction, rel_ang_diff_start, rel_ang_diff_end,
+                     rel_ang_change, rel_ang_min, rel_ang_max, rel_ang_diff):  # TODO make a generic sql write function
     insert_value = float(dir_value)
     con = connect_db()
     cur = con.cursor()
 
-    parameters = (insert_value, dirtype, timesum, num_values, direction, anglediff)
-    cur.execute("INSERT OR IGNORE INTO dir_change VALUES (NULL, ?, ?, ?, ?, ?, ?)", parameters)
+    parameters = (insert_value, dirtype, timesum, num_values, direction, rel_ang_diff_start, rel_ang_diff_end,
+                  rel_ang_change, rel_ang_min, rel_ang_max, rel_ang_diff)
+    cur.execute("INSERT OR IGNORE INTO dir_change VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", parameters)
 
     con.commit()
     con.close()
@@ -62,12 +69,13 @@ def write_current_group(group_value, direction_type):
 
 def read_dirchange():
     con = connect_db()
-    cur = con.cursor()
-    read_sql = "select id, dirvalue, timesum, num_values, direction, dirtype, anglediff from dir_change ORDER BY id desc;"
-    cur.execute(read_sql)
-    current_group = cur.fetchall()
-    # print(current_group)
-    return current_group
+    read_sql = "select id, dirvalue, dirtype, timesum, num_values, direction, rel_ang_diff_start, " \
+               "rel_ang_diff_end, rel_ang_diff_change, rel_ang_min, rel_ang_max, rel_ang_diff " \
+               "FROM dir_change " \
+               "ORDER BY id asc;"
+    current_group_df = pd.read_sql(sql=read_sql, con=con, index_col='id')
+
+    return current_group_df
 
 
 def read_current_group():
@@ -116,6 +124,7 @@ def calc_groups(current_direction, next_direction, dfkey):
 
 
 def calc_dir_change(groupdf, dfkey):
+    # TODO rename function to reflect calculations inside -- not just direction changes
     df = groupdf
 
     group_direction = df['direction_shift'].iloc[0]
@@ -126,16 +135,22 @@ def calc_dir_change(groupdf, dfkey):
     end_dir = df[dfkey].iloc[-1]
     dir_change = abs(start_dir - end_dir)
 
+    relative_angle_diff_start = df['head_v_body_diff'].iloc[0]
+    relative_angle_diff_end = df['head_v_body_diff'].iloc[-1]
+    relative_angle_diff_change = abs(relative_angle_diff_start - relative_angle_diff_end)
+
     relative_angle_min = df['head_v_body_diff'].min()
     relative_angle_max = df['head_v_body_diff'].max()
-    relative_angle_diff = abs(relative_angle_max - relative_angle_min)
+    relative_angle_diff = abs(relative_angle_max - relative_angle_min)  # Largest difference in angle between body, head
 
-    write_dir_change(dir_value=dir_change, timesum=time_sum, num_values=num_measurements,
-                     direction=group_direction, dirtype=dfkey, anglediff=relative_angle_diff)
+    write_dir_change(dir_value=dir_change, dirtype=dfkey, timesum=time_sum, num_values=num_measurements,
+                     direction=group_direction, rel_ang_diff_start=relative_angle_diff_start,
+                     rel_ang_diff_end=relative_angle_diff_end, rel_ang_change=relative_angle_diff_change,
+                     rel_ang_min=relative_angle_min, rel_ang_max=relative_angle_max, rel_ang_diff=relative_angle_diff)
 
 
-# TODO rename function to reflect calculations inside -- not just percentages
 def calc_pct_of_max(dir_changes, maxdir, maxduration):
+    # TODO rename function to reflect calculations inside -- not just percentages
     # Input if list of tuples - 0 is id, 1 is dir change
 
     # First calculate pct max for dir change
@@ -144,27 +159,12 @@ def calc_pct_of_max(dir_changes, maxdir, maxduration):
     direction_dict.update({"max_dir_change": maxdir})
     direction_dict.update({"max_duration": maxduration})
 
-    direction_dict.update({"groups": {}})
-    for i in dir_changes:
-        dirgroup = i[0]
-        dirvalue = i[1]
-        durationvalue = i[2]
-        num_values = i[3]
-        direction = i[4]
-        dirtype = i[5]
-        angle_diff = i[6]
+    dir_changes['pct_change_max'] = (dir_changes['dirvalue'] / maxdir) * 100
+    dir_changes['pct_duration_max'] = (dir_changes[
+                                           'timesum'] / maxduration) * 100  # pct of max duration of direction change
+    dir_changes['dir_ch_sec'] = dir_changes['dirvalue'] / dir_changes['timesum']  # how quickly player changed direction
 
-        pct_change_max = (dirvalue / maxdir) * 100  # pct of max dir change
-        pct_duration_max = (durationvalue / maxduration) * 100  # pct of max duration of direction change
-        dir_ch_sec = dirvalue / durationvalue  # how quickly player changed direction
-        direction_dict['groups'].update({dirgroup: {}})
-        direction_dict['groups'][dirgroup].update({"direction": direction})
-        direction_dict['groups'][dirgroup].update({"num_values": num_values})
-        direction_dict['groups'][dirgroup].update({"pct_ch_max": pct_change_max})
-        direction_dict['groups'][dirgroup].update({"pct_dur_max": pct_duration_max})
-        direction_dict['groups'][dirgroup].update({"dir_ch_per_sec": dir_ch_sec})
-        direction_dict['groups'][dirgroup].update({"dirtype": dirtype})
-        direction_dict['groups'][dirgroup].update({"angle_diff": angle_diff})
+    direction_dict.update({"data": dir_changes})
 
     return direction_dict
 
@@ -226,25 +226,17 @@ def calc_rotation(df, dfkey):
     # Calculate change in direction ---------
     unique_groups = df['groups'].unique()
 
-    # Create empty dict for storing dataframes
-    #dir_dict_tmp = {}
-    # Create dataframe for each group and store in dict
     for group in unique_groups:
         group_df = df.loc[df['groups'] == group]
-        #dir_dict_tmp.update({group: group_df})
+        # Calculate change in direction and angles, and write to database
         calc_dir_change(groupdf=group_df, dfkey=dfkey)
 
-    # Calculate min and max dir change
-    # Sorted by dir change
-    dir_change_sort = sorted([i for i in read_dirchange()], key=lambda x: x[1])  # Sorted by biggest change in direction
-    min_dir = float(dir_change_sort[0][1])
-    max_dir = float(dir_change_sort[-1][1])
+    dir_df = read_dirchange()
 
-    dir_duration_sort = sorted(dir_change_sort, key=lambda y: y[2])  # Sorted by duration of direction change
-    min_duration = float(dir_duration_sort[0][2])
-    max_duration = float(dir_duration_sort[-1][2])
+    # Find min and max dir change
+    max_dir = dir_df['dirvalue'].max()
+    max_duration = dir_df['timesum'].max()
 
-    #print(min_dir, max_dir, min_duration, max_duration)
-
-    dir_dict = calc_pct_of_max(dir_changes=dir_change_sort, maxdir=max_dir, maxduration=max_duration)
+    # Add additional columns, returns a dict, containing a DataFrame
+    dir_dict = calc_pct_of_max(dir_changes=dir_df, maxdir=max_dir, maxduration=max_duration)
     return dir_dict
