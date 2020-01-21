@@ -19,7 +19,7 @@ def create_tables():
     group_sql_d1 = """
     CREATE TABLE t_overlap_d1 (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        groupvalue integer,
+        group_value integer,
         d1_dir text)"""
     cur.execute(group_sql_d1)
     con.commit()
@@ -58,12 +58,12 @@ def read_groupvalues(d):
 
 
 def write_to_db(groupvalue, dir, num_values, d):
-    print(dir, num_values)
+    #print(dir, num_values)
     current_value = 1
 
     con = connect_db()
     cur = con.cursor()
-    # TODO PICK UP HERE figure out why there is sqlite operational error
+
     while current_value < (num_values+1):
         print(current_value)
         current_group = groupvalue
@@ -75,7 +75,7 @@ def write_to_db(groupvalue, dir, num_values, d):
         con.commit()
         current_value += 1
     read_groupvalues(d=d)
-    exit()
+
 
 
 def compare_rotation(d1, d2):
