@@ -13,33 +13,69 @@ def connect_db():
     return con
 
 
-def create_table():
+def create_tables():
     con = connect_db()
     cur = con.cursor()
-    group_sql = """
-    CREATE TABLE t_overlap (
+    group_sql_d1 = """
+    CREATE TABLE t_overlap_d1 (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        d1 dir text,
-        d2 dir text)"""
-    cur.execute(group_sql)
+        groupvalue integer,
+        d1_dir text)"""
+    cur.execute(group_sql_d1)
+    con.commit()
+
+    group_sql_d2 = """
+        CREATE TABLE t_overlap_d2 (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            group_value integer,
+            d2_dir text)"""
+    cur.execute(group_sql_d2)
+    con.commit()
     con.close()
 
 
 def clear_db():
     con = connect_db()
     cur = con.cursor()
-    delete_dirgroups = "DELETE FROM t_overlap;"
+    delete_dirgroups = "DELETE FROM t_overlap_d1;"
     cur.execute(delete_dirgroups)
     con.commit()
 
-    delete_overlap_increment = "delete from sqlite_sequence where name='t_overlap';"
+    delete_overlap_increment = "delete from sqlite_sequence where name='t_overlap_d1';"
     cur.execute(delete_overlap_increment)
     con.commit()
     con.close()
 
 
-def overlapping_dir(d1_dir, d1_num, d2_dir, d2_num):
-    print("overlap")
+def read_groupvalues(d):
+    con = connect_db()
+    read_sql = f"select id, group_value, d1_dir FROM t_overlap_{d} ORDER BY id asc;"
+    current_group_val = pd.read_sql(sql=read_sql, con=con, index_col='id')
+    print(current_group_val)
+
+    #return current_group_val
+
+
+
+def write_to_db(groupvalue, dir, num_values, d):
+    print(dir, num_values)
+    current_value = 1
+
+    con = connect_db()
+    cur = con.cursor()
+    # TODO PICK UP HERE figure out why there is sqlite operational error
+    while current_value < (num_values+1):
+        print(current_value)
+        current_group = groupvalue
+        direction = dir
+
+        parameters = (current_group, direction)
+        print(parameters)
+        cur.execute(f"INSERT OR IGNORE INTO t_overlap_{d} VALUES (NULL, ?, ?)", parameters)
+        con.commit()
+        current_value += 1
+    read_groupvalues(d=d)
+    exit()
 
 
 def compare_rotation(d1, d2):
@@ -51,26 +87,22 @@ def compare_rotation(d1, d2):
     if os.path.exists('./comparegroups.sqlite'):
         clear_db()
     else:
-        create_table()
+        create_tables()
 
     # TODO create a function that determines whether or not part of a body/head dir group overlaps with another group
     # d1 head
     # d2 body
 
-    #print(d1.keys())
-    #print(d1['groups'])
-    print(d1['data'].keys())
-    print(len(d1['data'].keys()))
-    print(len(d1['data'].index))
+    # I need the ID as a column, so reset the index
+    d1['data'].reset_index(inplace=True)
+    d2['data'].reset_index(inplace=True)
 
     print(d1['data'].head())
     print(d2['data'].head())
-    #d1_order_group = sorted(d1, key=lambda x: x)
 
     # Find number of values for each group where head and body were moving in the same direction
 
-    d1['same_dir'] = ''
-    d1['differnet_dir'] = ''
+    d1['data'][['id', 'direction', 'num_values']].apply(lambda x: write_to_db(
+        d='d1', groupvalue=x['id'], dir=x['direction'], num_values=x['num_values']), axis=1)
 
-    d2['same_dir'] = ''
-    d2['differnet_dir'] = ''
+
