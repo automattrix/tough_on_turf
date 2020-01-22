@@ -56,6 +56,26 @@ def read_groupvalues(d):
     #return current_group_val
 
 
+def read_joined_values(d, group):
+    if d == 'd1':
+        otherkey = 'd2'
+    elif d == 'd2':
+        otherkey = 'd1'
+    else:
+        exit("Invalid Key")
+
+    con = connect_db()
+    con.row_factory = sqlite3.Row
+    cur = con.cursor()
+
+    read_sql = f"select a.id, a.group_value, a.d1_dir, b.id, b.group_value, b.d2_dir FROM t_overlap_{d} a " \
+        f"JOIN t_overlap_{otherkey} b ON a.id = b.id WHERE a.group_value = {group} ORDER BY a.id asc;"
+
+    cur.execute(read_sql)
+    group_results = [dict(row) for row in cur.fetchall()]
+    print(group_results)
+    exit()
+
 
 def write_to_db(groupvalue, dir, num_values, d):
     #print(dir, num_values)
@@ -65,16 +85,16 @@ def write_to_db(groupvalue, dir, num_values, d):
     cur = con.cursor()
 
     while current_value < (num_values+1):
-        print(current_value)
+        #print(current_value)
         current_group = groupvalue
         direction = dir
 
         parameters = (current_group, direction)
-        print(parameters)
+        #print(parameters)
         cur.execute(f"INSERT OR IGNORE INTO t_overlap_{d} VALUES (NULL, ?, ?)", parameters)
         con.commit()
         current_value += 1
-    read_groupvalues(d=d)
+
 
 
 
@@ -99,10 +119,14 @@ def compare_rotation(d1, d2):
 
     print(d1['data'].head())
     print(d2['data'].head())
-
     # Find number of values for each group where head and body were moving in the same direction
-
+    # First write values to dtabase for each group
     d1['data'][['id', 'direction', 'num_values']].apply(lambda x: write_to_db(
         d='d1', groupvalue=x['id'], dir=x['direction'], num_values=x['num_values']), axis=1)
 
+    d2['data'][['id', 'direction', 'num_values']].apply(lambda x: write_to_db(
+        d='d2', groupvalue=x['id'], dir=x['direction'], num_values=x['num_values']), axis=1)
+
+    # Now read back the values and compare
+    d1['data']['overlap'] = d1['data'][['id']].apply(lambda x: read_joined_values(d='d1', group=x['id']), axis=1)
 
