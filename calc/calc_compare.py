@@ -56,6 +56,13 @@ def read_groupvalues(d):
     #return current_group_val
 
 
+def compare_joined_values(a, b):
+    if a == b:
+        return "same"
+    else:
+        return "opposite"
+
+
 def read_joined_values(d, group):
     if d == 'd1':
         otherkey = 'd2'
@@ -65,16 +72,20 @@ def read_joined_values(d, group):
         exit("Invalid Key")
 
     con = connect_db()
-    con.row_factory = sqlite3.Row
-    cur = con.cursor()
 
-    read_sql = f"select a.id, a.group_value, a.d1_dir, b.id, b.group_value, b.d2_dir FROM t_overlap_{d} a " \
+    read_sql = f"select a.id as id, a.group_value, a.d1_dir, b.group_value, b.d2_dir FROM t_overlap_{d} a " \
         f"JOIN t_overlap_{otherkey} b ON a.id = b.id WHERE a.group_value = {group} ORDER BY a.id asc;"
 
-    cur.execute(read_sql)
-    group_results = [dict(row) for row in cur.fetchall()]
-    print(group_results)
-    exit()
+    joined_values_df = pd.read_sql(sql=read_sql, con=con, index_col='id')
+
+    joined_values_df['compare'] = joined_values_df[['d1_dir', 'd2_dir']].apply(
+        lambda x: compare_joined_values(a=x[f'{d}_dir'], b=x[f'{otherkey}_dir']), axis=1)
+
+    print(joined_values_df.head(50))
+    same_df = joined_values_df.loc[joined_values_df['compare'] == 'same']
+    overlap_dir = len(same_df.iondex)
+
+    return overlap_dir
 
 
 def write_to_db(groupvalue, dir, num_values, d):
