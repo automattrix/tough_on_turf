@@ -81,32 +81,26 @@ def read_joined_values(d, group):
     joined_values_df['compare'] = joined_values_df[['d1_dir', 'd2_dir']].apply(
         lambda x: compare_joined_values(a=x[f'{d}_dir'], b=x[f'{otherkey}_dir']), axis=1)
 
-    print(joined_values_df.head(50))
     same_df = joined_values_df.loc[joined_values_df['compare'] == 'same']
-    overlap_dir = len(same_df.iondex)
+    overlap_dir = len(same_df.index)
 
     return overlap_dir
 
 
 def write_to_db(groupvalue, dir, num_values, d):
-    #print(dir, num_values)
     current_value = 1
 
     con = connect_db()
     cur = con.cursor()
 
     while current_value < (num_values+1):
-        #print(current_value)
         current_group = groupvalue
         direction = dir
 
         parameters = (current_group, direction)
-        #print(parameters)
         cur.execute(f"INSERT OR IGNORE INTO t_overlap_{d} VALUES (NULL, ?, ?)", parameters)
         con.commit()
         current_value += 1
-
-
 
 
 def compare_rotation(d1, d2):
@@ -140,4 +134,5 @@ def compare_rotation(d1, d2):
 
     # Now read back the values and compare
     d1['data']['overlap'] = d1['data'][['id']].apply(lambda x: read_joined_values(d='d1', group=x['id']), axis=1)
-
+    print(d1['data'].head(50))
+    exit()
