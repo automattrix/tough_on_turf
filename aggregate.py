@@ -90,10 +90,8 @@ def main():
 
             # o = head, dir = body
             head_rotation = calc_rotation.calc_rotation(play_df, dfkey='o')
-            #print(head_rotation)
 
             body_rotation = calc_rotation.calc_rotation(play_df, dfkey='dir')
-            #print(body_rotation)
 
             # Create a table of results for each play
             head_vs_body = calc_compare.compare_rotation(d1=head_rotation, d2=body_rotation)
