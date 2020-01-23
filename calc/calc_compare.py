@@ -73,7 +73,7 @@ def read_joined_values(d, group):
 
     con = connect_db()
 
-    read_sql = f"select a.id as id, a.group_value, a.d1_dir, b.group_value, b.d2_dir FROM t_overlap_{d} a " \
+    read_sql = f"select a.id as id, a.group_value, a.{d}_dir, b.group_value, b.{otherkey}_dir FROM t_overlap_{d} a " \
         f"JOIN t_overlap_{otherkey} b ON a.id = b.id WHERE a.group_value = {group} ORDER BY a.id asc;"
 
     joined_values_df = pd.read_sql(sql=read_sql, con=con, index_col='id')
@@ -133,6 +133,14 @@ def compare_rotation(d1, d2):
         d='d2', groupvalue=x['id'], dir=x['direction'], num_values=x['num_values']), axis=1)
 
     # Now read back the values and compare
+    # d1 head orientation
     d1['data']['overlap'] = d1['data'][['id']].apply(lambda x: read_joined_values(d='d1', group=x['id']), axis=1)
+    d1['data']['overlap_pct'] = (d1['data']['overlap'] / d1['data']['num_values']) * 100
     print(d1['data'].head(50))
+
+    # d2 body orientation
+    # Leaning towards d2 (body) orientation being weighted more than d1, as the body generates more momentum
+    d2['data']['overlap'] = d2['data'][['id']].apply(lambda x: read_joined_values(d='d2', group=x['id']), axis=1)
+    d2['data']['overlap_pct'] = (d2['data']['overlap'] / d2['data']['num_values']) * 100
+    print(d2['data'].head(50))
     exit()
