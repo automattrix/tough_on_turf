@@ -143,4 +143,6 @@ def compare_rotation(d1, d2):
     d2['data']['overlap'] = d2['data'][['id']].apply(lambda x: read_joined_values(d='d2', group=x['id']), axis=1)
     d2['data']['overlap_pct'] = (d2['data']['overlap'] / d2['data']['num_values']) * 100
     print(d2['data'].head(50))
-    exit()
+
+    return d1, d2
+
