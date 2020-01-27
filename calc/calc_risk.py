@@ -6,3 +6,9 @@ def risk_factors():
 
 def score(d, df):
     num_turns = len(df.index)
+
+    # arbitrary risk score
+
+
+
+

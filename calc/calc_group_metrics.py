@@ -127,22 +127,37 @@ def calc_groups(current_direction, next_direction, dfkey):
 def calc_dir_change(groupdf, dfkey):
     # TODO rename function to reflect calculations inside -- not just direction changes
     df = groupdf
-
+    print(df.keys())
+    exit()
     group_direction = df['direction_shift'].iloc[0]
     time_sum = df['time_interval'].sum()
     num_measurements = len(df.index)
 
+    # Calculate change in direction
     start_dir = df[dfkey].iloc[0]
     end_dir = df[dfkey].iloc[-1]
     dir_change = abs(start_dir - end_dir)
 
+    # Calculate change in relative angle between head and body
     relative_angle_diff_start = df['head_v_body_diff'].iloc[0]
     relative_angle_diff_end = df['head_v_body_diff'].iloc[-1]
     relative_angle_diff_change = (relative_angle_diff_end - relative_angle_diff_start)
 
+    # Calculate difference between min and max relative angle -- note head & body don't always line up
     relative_angle_min = df['head_v_body_diff'].min()
     relative_angle_max = df['head_v_body_diff'].max()
     relative_angle_diff = abs(relative_angle_max - relative_angle_min)  # Largest difference in angle between body, head
+
+
+    # Calculate velocity
+    avg_vel = df['velocity'].mean()
+    avg_vel_change = df['velocity_change'].mean()
+
+    min_velocity = df['velocity'].min()
+    max_velocity = df['velocity'].max()
+
+    min_velocity_change = df['velocity_change'].min()
+    max_velocity_change = df['velocity_change'].max()
 
     write_dir_change(dir_value=dir_change, dirtype=dfkey, timesum=time_sum, num_values=num_measurements,
                      direction=group_direction, rel_ang_diff_start=relative_angle_diff_start,
