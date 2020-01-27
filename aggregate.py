@@ -1,6 +1,7 @@
 import os
 import pandas as pd
-from calc import calc_speed, calc_rotation, calc_compare
+from calc import calc_speed, calc_group_metrics, calc_compare, calc_risk
+
 
 class Player:
     def __init__(self, csv_path):
@@ -72,7 +73,6 @@ def main():
         # Get unique playkeys
         play_keys = player.playerkeys()
 
-
         # TODO create an empty table for writing results from the following calcuations
         # Calculate data for each play
         for play in play_keys:
@@ -82,24 +82,24 @@ def main():
 
             # UNCOMMENT FOR FINAL
             # Calculate speed averages ---------------------------
-            # speed = calc_speed.calc_avg(play_df)
-            # print(speed) ---------------------------------------
-
+            speed = calc_speed.calc_avg(play_df)
+            print(speed)
 
             # Calculate head and body rotation
 
             # o = head, dir = body
-            head_rotation = calc_rotation.calc_rotation(play_df, dfkey='o')
+            head_rotation = calc_group_metrics.calc_rotation(play_df, dfkey='o')
 
-            body_rotation = calc_rotation.calc_rotation(play_df, dfkey='dir')
+            body_rotation = calc_group_metrics.calc_rotation(play_df, dfkey='dir')
 
             # Create a table of results for each play
             head_vs_body = calc_compare.compare_rotation(d1=head_rotation, d2=body_rotation)
 
+            risk_score = calc_risk.score(d='d2', df=head_vs_body[1])
 
-
-            # TODO compare head dir vs body dir
+            # TODO group by play event, and analyze the direction groups per play event (punt, pass, run, etc)
             # TODO create risk factor
+            # TODO redo speed per group instead of for entire play
             exit()
 
 

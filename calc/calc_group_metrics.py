@@ -3,6 +3,7 @@ import sqlite3
 import os
 import database
 
+
 def connect_db():
     con = sqlite3.connect('./groupdb.sqlite')
     return con
