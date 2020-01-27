@@ -137,7 +137,7 @@ def calc_dir_change(groupdf, dfkey):
 
     relative_angle_diff_start = df['head_v_body_diff'].iloc[0]
     relative_angle_diff_end = df['head_v_body_diff'].iloc[-1]
-    relative_angle_diff_change = abs(relative_angle_diff_start - relative_angle_diff_end)
+    relative_angle_diff_change = (relative_angle_diff_end - relative_angle_diff_start)
 
     relative_angle_min = df['head_v_body_diff'].min()
     relative_angle_max = df['head_v_body_diff'].max()
