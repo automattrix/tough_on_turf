@@ -88,9 +88,9 @@ def main():
             # Calculate head and body rotation
 
             # o = head, dir = body
-            head_rotation = calc_group_metrics.calc_rotation(play_df, dfkey='o')
+            head_rotation = calc_group_metrics.calc_metrics(play_df, dfkey='o')
 
-            body_rotation = calc_group_metrics.calc_rotation(play_df, dfkey='dir')
+            body_rotation = calc_group_metrics.calc_metrics(play_df, dfkey='dir')
 
             # Create a table of results for each play
             head_vs_body = calc_compare.compare_rotation(d1=head_rotation, d2=body_rotation)

@@ -20,12 +20,13 @@ def create_table():
     cur.execute(group_sql)
     con.close()
 
+
 # TODO rename function and db table to reflect what is being written
 def create_table_dirchange():
     con = connect_db()
     cur = con.cursor()
     group_sql = """
-    CREATE TABLE dir_change (
+        CREATE TABLE group_metrics (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         dirvalue float,
         dirtype text,
@@ -37,21 +38,32 @@ def create_table_dirchange():
         rel_ang_diff_change float,
         rel_ang_min float,
         rel_ang_max float,
-        rel_ang_diff float)"""
+        rel_ang_diff float,
+        vel_avg float,
+        vel_avg_change float,
+        vel_min float,
+        vel_max float,
+        vel_change_min float,
+        vel_change_max float
+        )"""
     cur.execute(group_sql)
     con.commit()
     con.close()
 
 
 def write_dir_change(dir_value, dirtype, timesum, num_values, direction, rel_ang_diff_start, rel_ang_diff_end,
-                     rel_ang_change, rel_ang_min, rel_ang_max, rel_ang_diff):  # TODO make a generic sql write function
+                     rel_ang_change, rel_ang_min, rel_ang_max, rel_ang_diff, vel_avg, vel_avg_change, vel_min, vel_max,
+                     vel_change_min, vel_change_max):  # TODO make a generic sql write function UGH DO IT ALREADY
     insert_value = float(dir_value)
     con = connect_db()
     cur = con.cursor()
 
     parameters = (insert_value, dirtype, timesum, num_values, direction, rel_ang_diff_start, rel_ang_diff_end,
-                  rel_ang_change, rel_ang_min, rel_ang_max, rel_ang_diff)
-    cur.execute("INSERT OR IGNORE INTO dir_change VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", parameters)
+                  rel_ang_change, rel_ang_min, rel_ang_max, rel_ang_diff, vel_avg, vel_avg_change, vel_min, vel_max,
+                  vel_change_min, vel_change_max)
+    cur.execute("INSERT OR IGNORE "
+                "INTO group_metrics "
+                "VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", parameters)
 
     con.commit()
     con.close()
@@ -71,8 +83,9 @@ def write_current_group(group_value, direction_type):
 def read_dirchange():
     con = connect_db()
     read_sql = "select id, dirvalue, dirtype, timesum, num_values, direction, rel_ang_diff_start, " \
-               "rel_ang_diff_end, rel_ang_diff_change, rel_ang_min, rel_ang_max, rel_ang_diff " \
-               "FROM dir_change " \
+               "rel_ang_diff_end, rel_ang_diff_change, rel_ang_min, rel_ang_max, rel_ang_diff, vel_avg, " \
+               "vel_avg_change, vel_min, vel_max, vel_change_min, vel_change_max " \
+               "FROM group_metrics " \
                "ORDER BY id asc;"
     current_group_df = pd.read_sql(sql=read_sql, con=con, index_col='id')
 
@@ -96,7 +109,7 @@ def clear_db():
     cur.execute(delete_dirgroups)
     con.commit()
 
-    delete_dirchange = "DELETE FROM dir_change;"
+    delete_dirchange = "DELETE FROM group_metrics;"
     cur.execute(delete_dirchange)
     con.commit()
 
@@ -128,7 +141,6 @@ def calc_dir_change(groupdf, dfkey):
     # TODO rename function to reflect calculations inside -- not just direction changes
     df = groupdf
     print(df.keys())
-    exit()
     group_direction = df['direction_shift'].iloc[0]
     time_sum = df['time_interval'].sum()
     num_measurements = len(df.index)
@@ -148,21 +160,22 @@ def calc_dir_change(groupdf, dfkey):
     relative_angle_max = df['head_v_body_diff'].max()
     relative_angle_diff = abs(relative_angle_max - relative_angle_min)  # Largest difference in angle between body, head
 
-
     # Calculate velocity
-    avg_vel = df['velocity'].mean()
-    avg_vel_change = df['velocity_change'].mean()
+    vel_avg = df['velocity'].mean()
+    vel_avg_change = df['velocity_change'].mean()
 
-    min_velocity = df['velocity'].min()
-    max_velocity = df['velocity'].max()
+    vel_min = df['velocity'].min()
+    vel_max = df['velocity'].max()
 
-    min_velocity_change = df['velocity_change'].min()
-    max_velocity_change = df['velocity_change'].max()
+    vel_change_min = df['velocity_change'].min()
+    vel_change_max = df['velocity_change'].max()
 
     write_dir_change(dir_value=dir_change, dirtype=dfkey, timesum=time_sum, num_values=num_measurements,
                      direction=group_direction, rel_ang_diff_start=relative_angle_diff_start,
                      rel_ang_diff_end=relative_angle_diff_end, rel_ang_change=relative_angle_diff_change,
-                     rel_ang_min=relative_angle_min, rel_ang_max=relative_angle_max, rel_ang_diff=relative_angle_diff)
+                     rel_ang_min=relative_angle_min, rel_ang_max=relative_angle_max, rel_ang_diff=relative_angle_diff,
+                     vel_avg=vel_avg, vel_avg_change=vel_avg_change, vel_min=vel_min, vel_max=vel_max,
+                     vel_change_min=vel_change_min, vel_change_max=vel_change_max)
 
 
 def calc_pct_of_max(dir_changes, maxdir, maxduration):
@@ -209,7 +222,7 @@ def calc_angle_diff(o, dir):
     return angle_diff
 
 
-def calc_rotation(df, dfkey):
+def calc_metrics(df, dfkey):
     if os.path.exists('./groupdb.sqlite'):
         clear_db()
         write_current_group(group_value=0, direction_type=dfkey)

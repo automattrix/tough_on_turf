@@ -1,0 +1,23 @@
+# sqlite3
+# t_group_metrics
+
+"""CREATE TABLE group_metrics (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        dirvalue float,
+        dirtype text,
+        timesum float,
+        num_values int,
+        direction text,
+        rel_ang_diff_start float,
+        rel_ang_diff_end float,
+        rel_ang_diff_change float,
+        rel_ang_min float,
+        rel_ang_max float,
+        rel_ang_diff float,
+        vel_avg float,
+        vel_avg_change float,
+        vel_min float,
+        vel_max float,
+        vel_change_min float,
+        vel_change_max float
+        )"""
