@@ -37,12 +37,16 @@ def create_tables():
 def clear_db():
     con = connect_db()
     cur = con.cursor()
-    delete_dirgroups = "DELETE FROM t_overlap_d1;"
-    cur.execute(delete_dirgroups)
+    delete_dirgroups_d1 = "DELETE FROM t_overlap_d1;"
+    delete_dirgroups_d2 = "DELETE FROM t_overlap_d2;"
+    cur.execute(delete_dirgroups_d1)
+    cur.execute(delete_dirgroups_d2)
     con.commit()
 
-    delete_overlap_increment = "delete from sqlite_sequence where name='t_overlap_d1';"
-    cur.execute(delete_overlap_increment)
+    delete_overlap_increment_d1 = "delete from sqlite_sequence where name='t_overlap_d1';"
+    delete_overlap_increment_d2 = "delete from sqlite_sequence where name='t_overlap_d2';"  # I'm sorry..I know..
+    cur.execute(delete_overlap_increment_d1)
+    cur.execute(delete_overlap_increment_d2)
     con.commit()
     con.close()
 
