@@ -95,7 +95,14 @@ def main():
             # Create a table of results for each play
             head_vs_body = calc_compare.compare_rotation(d1=head_rotation, d2=body_rotation)
 
-            risk_score = calc_risk.score(d='d2', df=head_vs_body[1])
+            risk_score = calc_risk.score(d='d2', tmp_df=head_vs_body[1])
+
+            print(risk_score.head(10))
+            avg_score = risk_score['score'].mean()
+            num_turns = len(risk_score.index)
+            
+
+
 
             # TODO group by play event, and analyze the direction groups per play event (punt, pass, run, etc)
             # TODO create risk factor

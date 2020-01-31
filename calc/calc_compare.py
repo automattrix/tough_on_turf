@@ -149,6 +149,5 @@ def compare_rotation(d1, d2):
     print(d2['data'].head(50))
 
     # Temporary output to csv
-    d2['data'].to_csv('./test_compare_d2.csv')
+    #d2['data'].to_csv('./test_compare_d2.csv')
     return d1, d2
-
