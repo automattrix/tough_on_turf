@@ -100,9 +100,11 @@ def main():
             print(risk_score.head(10))
             avg_score = risk_score['score'].mean()
             num_turns = len(risk_score.index)
-            
 
+            weighted_score = (risk_score['score'] * risk_score['timesum']).sum() / risk_score['timesum'].sum()
 
+            print(risk_score['score'].mean())
+            print(weighted_score)
 
             # TODO group by play event, and analyze the direction groups per play event (punt, pass, run, etc)
             # TODO create risk factor
