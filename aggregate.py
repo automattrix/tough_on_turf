@@ -83,7 +83,7 @@ def main():
             # UNCOMMENT FOR FINAL
             # Calculate speed averages ---------------------------
             speed = calc_speed.calc_avg(play_df)
-            print(speed)
+            #print(speed)
 
             # Calculate head and body rotation
 
@@ -97,7 +97,7 @@ def main():
 
             risk_score = calc_risk.score(d='d2', tmp_df=head_vs_body[1])
 
-            print(risk_score.head(10))
+            #print(risk_score.head(10))
             avg_score = risk_score['score'].mean()
             num_turns = len(risk_score.index)
 
@@ -107,9 +107,8 @@ def main():
             print(weighted_score)
 
             # TODO group by play event, and analyze the direction groups per play event (punt, pass, run, etc)
-            # TODO create risk factor
-            # TODO redo speed per group instead of for entire play
-            exit()
+
+            #exit()
 
 
 if __name__ == '__main__':

@@ -140,7 +140,7 @@ def calc_groups(current_direction, next_direction, dfkey):
 def calc_dir_change(groupdf, dfkey):
     # TODO rename function to reflect calculations inside -- not just direction changes
     df = groupdf
-    print(df.keys())
+    #print(df.keys())
     group_direction = df['direction_shift'].iloc[0]
     time_sum = df['time_interval'].sum()
     num_measurements = len(df.index)

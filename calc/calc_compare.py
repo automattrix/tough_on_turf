@@ -126,8 +126,8 @@ def compare_rotation(d1, d2):
     d1['data'].reset_index(inplace=True)
     d2['data'].reset_index(inplace=True)
 
-    print(d1['data'].head())
-    print(d2['data'].head())
+    #print(d1['data'].head())
+    #print(d2['data'].head())
     # Find number of values for each group where head and body were moving in the same direction
     # First write values to dtabase for each group
     d1['data'][['id', 'direction', 'num_values']].apply(lambda x: write_to_db(
@@ -140,13 +140,13 @@ def compare_rotation(d1, d2):
     # d1 head orientation
     d1['data']['overlap'] = d1['data'][['id']].apply(lambda x: read_joined_values(d='d1', group=x['id']), axis=1)
     d1['data']['overlap_pct'] = (d1['data']['overlap'] / d1['data']['num_values']) * 100
-    print(d1['data'].head(50))
+    #print(d1['data'].head(50))
 
     # d2 body orientation
     # Leaning towards d2 (body) orientation being weighted more than d1, as the body generates more momentum
     d2['data']['overlap'] = d2['data'][['id']].apply(lambda x: read_joined_values(d='d2', group=x['id']), axis=1)
     d2['data']['overlap_pct'] = (d2['data']['overlap'] / d2['data']['num_values']) * 100
-    print(d2['data'].head(50))
+    #print(d2['data'].head(50))
 
     # Temporary output to csv
     #d2['data'].to_csv('./test_compare_d2.csv')

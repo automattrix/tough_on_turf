@@ -3,7 +3,7 @@ import pandas as pd
 
 def calc_avg(df):
     unique_velocities = df['pos_neg_vel'].unique()
-    print(unique_velocities)
+    #print(unique_velocities)
     avg_total_vel = df['velocity'].mean()
 
     tmp_dict = {}
