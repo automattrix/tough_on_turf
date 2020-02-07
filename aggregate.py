@@ -62,6 +62,7 @@ def main():
     lof = list_files(directory='./player_csv/knee/')
     print(f"Found {len(lof)} files")
 
+    test_csv = open('./testing_output.csv', 'w')
     for tmp_playerfile in lof:
         # Create path to file
         player_file = str('./player_csv/knee/' + tmp_playerfile.strip())
@@ -105,10 +106,13 @@ def main():
 
             print(risk_score['score'].mean())
             print(weighted_score)
-
+            test_output = f'{play}, {weighted_score}'
+            test_csv.write(test_output)
             # TODO group by play event, and analyze the direction groups per play event (punt, pass, run, etc)
 
             #exit()
+
+    test_csv.close()
 
 
 if __name__ == '__main__':
