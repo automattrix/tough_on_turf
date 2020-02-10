@@ -2,3 +2,16 @@
 #
 # Documentation for this file format can be found in the kedro docs under `Accessing data`
 # You can access the kedro docs by running `kedro docs`
+
+
+player_list_knee:
+  type: CSVLocalDataSet
+  filepath: data/02_intermediate/knee_list.csv
+
+#player_list_ankle:
+#  type: CSVLocalDataSet
+#  filepath: data/02_intermediate/knee_list.csv
+#
+#player_list_foot:
+#  type: CSVLocalDataSet
+#  filepath: data/02_intermediate/knee_list.csv
