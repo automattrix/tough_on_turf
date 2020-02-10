@@ -65,7 +65,7 @@ def main():
     test_csv = open('./testing_output.csv', 'w')
     for tmp_playerfile in lof:
         # Create path to file
-        player_file = str('./player_csv/knee/' + tmp_playerfile.strip())
+        player_file = str('./data/02_intermediate/knee/' + tmp_playerfile.strip())
 
         # Initiate Player class
         player = Player(csv_path=player_file)
@@ -79,6 +79,7 @@ def main():
         for play in play_keys:
             print(play)
             # Load the data for the play
+            # TODO write to tmp data location
             play_df = player.player_data.loc[player.player_data['PlayKey'] == play]
 
             # UNCOMMENT FOR FINAL
