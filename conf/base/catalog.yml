@@ -15,3 +15,18 @@ player_list_knee:
 #player_list_foot:
 #  type: CSVLocalDataSet
 #  filepath: data/02_intermediate/knee_list.csv
+
+# List of plays
+play_list:
+  type: CSVLocalDataSet
+  filepath: data/01_raw/nfl-playing-surface-analytics/PlayList.csv
+
+# Recorded player movement metrics
+play_track_data:
+  type: CSVLocalDataSet
+  filepath: data/01_raw/nfl-playing-surface-analytics/PlayerTrackData.csv
+
+# INJURY REPORT
+injury_record:
+  type: CSVLocalDataSet
+  filepath: data/01_raw/nfl-playing-surface-analytics/InjuryRecord.csv
