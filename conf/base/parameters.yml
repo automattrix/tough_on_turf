@@ -6,5 +6,4 @@ players_injury:
   data_path_out: './data/02_intermediate/'
 
 data_prep:
-  run_h5: False
-  
+  run_h5: False # set to True to generate tracking data h5 -- takes a while to run
