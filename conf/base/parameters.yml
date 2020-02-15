@@ -1,14 +1,18 @@
 
 
+data_prep:
+  data_path_in: './data/01_raw/nfl-playing-surface-analytics/PlayerTrackData.csv'
+  data_path_out: './data/02_intermediate/nfl_trackdata.h5'
+  run_h5: False # set to True to generate tracking data h5 -- takes a while to run
+  compression_level: 9
+  chunksize: 100000
+
+
+nfl_trackdata:
+  data_path_in: 'data/02_intermediate/nfl_trackdata.h5'
+
+
 players_injury:
   bodypart: knee
   data_path_in: './data/02_intermediate/player_injury_csvs/'
   data_path_out: './data/02_intermediate/'
-
-data_prep:
-  data_path_in: './data/01_raw/nfl-playing-surface-analytics/PlayerTrackData.csv'
-  data_path_out: './data/02_intermediate/nfl_trackdata.h5'
-  run_h5: True # set to True to generate tracking data h5 -- takes a while to run
-  overwrite_h5: True
-  compression_level: 9
-  chunksize: 100000
