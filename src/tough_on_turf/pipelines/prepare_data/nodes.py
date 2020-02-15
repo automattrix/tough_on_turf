@@ -7,7 +7,8 @@ def _extract_playerkey(input_playkey):
     try:
         tmp_key = str(input_playkey).split('-')
         player_key = tmp_key[0]
-    except:
+    except IndexError as error:
+        print(error)
         player_key = None
     return player_key
 
