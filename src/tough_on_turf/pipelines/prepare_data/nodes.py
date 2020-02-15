@@ -2,10 +2,12 @@ import os
 import pandas as pd
 import h5py
 
+
 def _list_files(in_path, directory):
     tmp_csv_files = os.listdir(directory)
     csv_files = [f'{in_path}{csv_file}' for csv_file in tmp_csv_files]
     return csv_files
+
 
 def _write_csv(csv_list, csv_out):
     tmp_out = open(csv_out, 'w')
@@ -31,13 +33,17 @@ def _extract_playerkey(input_playkey):
         player_key = None
     return player_key
 
+
 def generate_h5(params):
 
     if params["run_h5"]:
+        print("yar")
         # TODO change this file check behaviour. Method to be set in params (overwrite, move, delete, etc)
-        if os.path.exists(params["data_path_out"]):
+        if os.path.exists(params["data_path_out"]) and params["overwrite_h5"]:
+            print("deletingfile")
             exit()
         else:
+            print("not deleting file")
             for chunk in pd.read_csv(params["data_path_in"], chunksize=params["chunksize"]):
                 chunk['PlayerKey'] = chunk['PlayKey'].apply(_extract_playerkey)
                 # print(chunk)
@@ -45,11 +51,13 @@ def generate_h5(params):
                 print(unique_players)
                 for player in unique_players:
                     keyname = f'player_{player}'
-                    # print(keyname)
+                    print(keyname)
                     df = chunk.loc[chunk['PlayerKey'] == player]
                     # print(df)
                     df.to_hdf('./data/02_intermediate/nfl_trackdata.h5', append=True,
                               key=keyname, min_itemsize=100, complevel=params["compression_level"])
+    else:
+        print("I did nothing")
 
 
 

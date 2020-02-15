@@ -8,8 +8,8 @@ def create_pipeline(**kwargs):
             node(
                 func=generate_h5,
                 inputs=["params:data_prep"],
-                outputs="csv_path",
-                name="list_player_csvs",
+                outputs=None,
+                name="generate_h5",
             ),
             node(
                 func=preprocess_player_files,
