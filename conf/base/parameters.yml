@@ -16,3 +16,9 @@ players_injury:
   bodypart: knee
   data_path_in: './data/02_intermediate/player_injury_csvs/'
   data_path_out: './data/02_intermediate/'
+
+prep_injury:
+  data_path_out: './data/02_intermediate/bodypart/'
+
+generate_custom_csv:
+  data_path_search: './data/02_intermediate/bodypart/'
