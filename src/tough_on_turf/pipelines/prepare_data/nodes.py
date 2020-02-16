@@ -1,6 +1,8 @@
 import os
 import pandas as pd
 import contextlib
+import numpy as np
+from sklearn import preprocessing
 
 
 def _extract_playerkey(input_playkey):
@@ -53,10 +55,220 @@ def _write_csv(csv_list, csv_out):
     tmp_out.close()
 
 
-def preprocess_player_files(params):
+def list_player_csvs(params):
     print("aggregating player data")
     lof = _list_files(in_path=params["data_path_in"], directory=f'{params["data_path_in"]}/{params["bodypart"]}')
     output_path = f'{params["data_path_out"]}/{params["bodypart"]}_list.csv'
     print(output_path)
     _write_csv(csv_list=lof, csv_out=output_path)
     return output_path
+
+
+def _create_injury_dict(df, params):
+    injury_dict = {}
+    unique_bodyparts = df['BodyPart'].unique()
+    df_unique_bodyparts = [_loc_dataframe(input_df=df, column='BodyPart', key=bodypart) for bodypart in unique_bodyparts]
+
+    # Write injury bodypart DataFrames to csv
+    for df_bodypart in df_unique_bodyparts:
+        _df_to_csv(df=df_bodypart, output_dir=params["data_path_out"],
+                   name=(str(df_bodypart['BodyPart'].iloc[0]).lower()) + '_injury.csv')
+
+    return injury_dict
+
+
+def _df_to_csv(df, output_dir, name):
+    output_path = os.path.join(output_dir, name)
+    print("Writing: {}".format(output_path))
+    df.to_csv(output_path)
+
+
+def _loc_dataframe(input_df, column, key):
+    df = input_df.loc[input_df[column] == key]
+    return df
+
+
+# Writes './data/02_intermediate/bodypart/bodypart_injury.csv'
+def prep_injury_data(df, params):
+    player_injury_raw = df
+    player_injury = player_injury_raw.dropna()
+    _create_injury_dict(df=player_injury, params=params)
+
+# ---------------
+
+
+def _split_x_comp(xy_comp):
+    x = xy_comp[0]
+    return x
+
+
+def _split_y_comp(xy_comp):
+    y = xy_comp[1]
+    return y
+
+
+def _calculate_vector_components(x, y, o, mag):
+    o_rad = np.deg2rad(o)
+    x_comp = (mag * (np.cos(o_rad)))
+    y_comp = (mag * (np.sin(o_rad)))
+    #print("vector output")
+    #print(x, x_comp, y, y_comp, o)
+
+    return x_comp, y_comp
+
+
+def _normalize_velocity(df):
+    min_max_scaler = preprocessing.MinMaxScaler()
+    try:
+        x = df[['velocity_change']].values.astype(float)
+        x_scaled = min_max_scaler.fit_transform(x)
+        x_list = map(lambda x: x[0], x_scaled)
+        x_series = pd.Series(x_list)
+        # Add back the index
+        x_series.index = df.index
+        return x_series
+    except:
+        pass
+
+
+def _velocity_pos_neg(velocity):
+    if float(velocity) == 0:
+        vel_change = "None"
+    elif float(velocity) < 0:
+        vel_change = "Negative"
+    elif float(velocity) > 0:
+        vel_change = "Positive"
+
+    return vel_change
+
+
+class NFLPlayer:
+    def __init__(self, df, params):
+        self.params = params
+        self.df = df
+        self.playerkey = 'player_' + str(df['PlayerKey'].iloc[0])
+        self.injuryplay = df['PlayKey'].iloc[0]
+
+        # Load all playdata for this player
+        self.playdata_raw = self.load_playdata()
+
+        # Add the distance and velocity columns
+        self.playdata = self.df_custom_columns()  # THIS IS ALL THE PLAYDATA
+        #self.injury_playdata = self.injury_play_dfs()  # THIS IS JUST THE INJURY PLAY DATA
+
+    def load_playdata(self):
+        # TODO add data in path from parameters
+        play_df = pd.read_hdf('../ds_venv/nfl_trackdata.h5', key=self.playerkey)
+        return play_df
+
+    # TODO move data write out of this method
+    def df_custom_columns(self):  # This actually writes the data and is misleading
+        df = self.playdata_raw.copy()
+
+        # Distance
+        df['x_change'] = df['x'].diff().fillna(0)
+        df['y_change'] = df['y'].diff().fillna(0)
+        df['distance'] = np.sqrt(np.power(df['x_change'], 2) + np.power(df['y_change'], 2))
+
+        # Time
+        df['time_interval'] = df['time'].diff().fillna(0)
+
+        # Velocity
+        df['velocity'] = (df['distance'] / df['time_interval']).astype(float).fillna(0)
+        df['velocity_change'] = df['velocity'].diff().fillna(0)
+        df['pos_neg_vel'] = df['velocity_change'].apply(_velocity_pos_neg)
+
+        # Calculate the x y components of a vector to graph the arrows for player orientation
+        df['xy_comp'] = df.apply(lambda i: _calculate_vector_components(x=i['x'], y=i['y'], o=i['o'], mag=3), axis=1)
+        df['x_comp'] = df['xy_comp'].apply(_split_x_comp)
+        df['y_comp'] = df['xy_comp'].apply(_split_y_comp)
+
+        # Calculate the x y components of a vector to graph the arrows for player direction
+        df['xy_comp_dir'] = df.apply(lambda i: _calculate_vector_components(x=i['x'], y=i['y'], o=i['dir'], mag=3), axis=1)
+        df['x_comp_dir'] = df['xy_comp_dir'].apply(_split_x_comp)
+        df['y_comp_dir'] = df['xy_comp_dir'].apply(_split_y_comp)
+        tmp_path = f"./player_csv/{self.playerkey}_custom.csv"
+        if not os.path.exists(tmp_path):
+            # TODO add output path from parameters
+            df.to_csv(f'./player_csv/{self.playerkey}_custom.csv')
+        else:
+            pass
+        return df
+
+    def current_play_df(self):
+        df = self.playdata
+
+    def injury_play_dfs(self):
+        df = self.playdata.loc[self.playdata['PlayKey'] == self.injuryplay]
+        df_keys = ['Negative', 'Positive', 'None']
+
+        play_dfs = []
+
+        for key in df_keys:
+            tmp_df = df.loc[df['pos_neg_vel'] == key]
+            tmp_df = tmp_df.copy()
+            tmp_df['veltype'] = key
+            play_dfs.append(tmp_df)
+            tmp_df = None
+
+        final_play_dfs = []
+        for play_df in play_dfs:
+            play_df = play_df.copy()
+            try:
+                velocity_norm = _normalize_velocity(df=play_df)
+                play_df['norm_velocity_change'] = velocity_norm
+                final_play_dfs.append(play_df)
+                #print(play_df.head())
+                play_df = None
+            except:
+                pass
+
+        return df, final_play_dfs
+
+
+def _load_injury_df(bodypart, params):
+    csv_path = (params["data_path_search"] + bodypart + '_injury.csv')
+    df = pd.read_csv(csv_path)
+    return df
+
+
+def _prep_unique_players(df):
+    unique_players = df['PlayerKey'].unique()
+
+    return unique_players
+
+
+# Get injury keys
+def discover_injury(data_dir):
+    injury_csvs_raw = os.listdir(data_dir)
+    injury_keys = [str(tmp_injury).split('_')[0].strip() for tmp_injury in injury_csvs_raw]
+    return injury_keys
+
+
+def get_x_y_start_end(df):
+    start_pt = df[['x', 'y']].iloc[0]
+    end_pt = df[['x', 'y']].iloc[-1]
+
+    return start_pt, end_pt
+
+
+# TODO START hERE for converting
+def generate_custom_csv(params):
+    # Discover injury keys from csv files in directory
+    injury_keys = discover_injury(data_dir=params["data_path_search"])
+    print("Detected injuries: {}".format(injury_keys))
+
+    # Load test dictionary
+    # TODO handle all injury dictionaries
+
+    for injury_key in injury_keys:
+        df = _load_injury_df(bodypart=injury_key)
+        print(df.keys())
+
+        unique_players = _prep_unique_players(df=df)
+        for unique_player in unique_players:
+            player_df = df.loc[df['PlayerKey'] == unique_player]
+            player = NFLPlayer(df=player_df)
+
+            print(player.playerkey)
+            player = None
