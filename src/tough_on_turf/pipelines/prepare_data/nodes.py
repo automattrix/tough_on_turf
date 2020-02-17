@@ -196,9 +196,6 @@ class NFLPlayer:
 
         return df
 
-    def current_play_df(self):
-        df = self.playdata
-
     def injury_play_dfs(self):
         df = self.playdata.loc[self.playdata['PlayKey'] == self.injuryplay]
         df_keys = ['Negative', 'Positive', 'None']
