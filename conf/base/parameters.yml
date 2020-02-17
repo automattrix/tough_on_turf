@@ -23,3 +23,4 @@ prep_injury:
 generate_custom_csv:
   data_path_in: 'data/02_intermediate/nfl_trackdata.h5'
   data_path_search: './data/02_intermediate/bodypart/'
+  data_path_out: './data/02_intermediate/player_injury_csvs/'
