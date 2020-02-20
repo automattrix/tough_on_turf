@@ -165,7 +165,7 @@ class NFLPlayer:
             pass
 
     def load_playdata(self):
-        play_df = pd.read_hdf(self.params["Data_path_in"], key=self.playerkey)
+        play_df = pd.read_hdf(self.params["data_path_in"], key=self.playerkey)
         return play_df
 
     def df_custom_columns(self):  # This actually writes the data and is misleading
