@@ -14,7 +14,7 @@ def create_pipeline(**kwargs):
             node(
                 func=prep_injury_data,  # writes to './data/02_intermediate/bodypart/bodypart_injury.csv'
                 inputs=["injury_record", "params:prep_injury"],
-                outputs="body_injury",
+                outputs=None,
                 name="prep_injury_data",
             ),
             node(
