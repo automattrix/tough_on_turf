@@ -239,6 +239,7 @@ def _prep_unique_players(df):
 # Get injury keys
 def _discover_injury(data_dir):
     injury_csvs_raw = os.listdir(data_dir)
+    print(injury_csvs_raw)
     injury_keys = [str(tmp_injury).split('_')[0].strip() for tmp_injury in injury_csvs_raw]
     return injury_keys
 
@@ -257,13 +258,13 @@ def generate_custom_csv(params):
     print("Detected injuries: {}".format(injury_keys))
 
     for injury_key in injury_keys:
-        df = _load_injury_df(bodypart=injury_key)
+        df = _load_injury_df(bodypart=injury_key, params=params)
         print(df.keys())
 
         unique_players = _prep_unique_players(df=df)
         for unique_player in unique_players:
             player_df = df.loc[df['PlayerKey'] == unique_player]
-            player = NFLPlayer(df=player_df, bodypart=injury_key)
+            player = NFLPlayer(df=player_df, bodypart=injury_key, params=params)
             # player
             print(player.playerkey)
             player.write_csv()
