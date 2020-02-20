@@ -266,4 +266,5 @@ def generate_custom_csv(params):
             player = NFLPlayer(df=player_df, bodypart=injury_key)
             # player
             print(player.playerkey)
+            player.write_csv()
             player = None
