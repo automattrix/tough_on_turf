@@ -19,7 +19,7 @@ def create_pipeline(**kwargs):
             ),
             node(
                 func=generate_custom_csv,  # from bodypart_injury
-                inputs=["injury_record", "params:generate_custom_csv"],
+                inputs=["params:generate_custom_csv"],
                 outputs=None,
                 name="generate_custom_csv",
             ),
