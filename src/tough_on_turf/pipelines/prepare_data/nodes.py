@@ -149,27 +149,35 @@ class NFLPlayer:
         self.bodypart = bodypart
         self.playerkey = 'player_' + str(df['PlayerKey'].iloc[0])
         self.injuryplay = df['PlayKey'].iloc[0]
+        self.output_csv = f"{self.params['data_path_out']}/{self.bodypart}/{self.playerkey}_custom.csv"
 
-        # Load all playdata for this player
-        self.playdata_raw = self.load_playdata()
+        # self.injury_playdata = self.injury_play_dfs()  # THIS IS JUST THE INJURY PLAY DATA
 
+    def check_output(self):
+        if os.path.exists(self.output_csv):
+            print(f"CSV exists: {self.output_csv}")
+            return True
+        else:
+            return False
+
+    def generate_playdata(self):
         # Add the distance and velocity columns
-        self.playdata = self.df_custom_columns()  # THIS IS ALL THE PLAYDATA
-        #self.injury_playdata = self.injury_play_dfs()  # THIS IS JUST THE INJURY PLAY DATA
+        playdata = self.df_custom_columns()  # THIS IS ALL THE PLAYDATA
 
-    def write_csv(self):
-        tmp_path = f"{self.params['data_path_out']}/{self.bodypart}/{self.playerkey}_custom.csv"
-        if not os.path.exists(tmp_path):
-            self.playdata.to_csv(tmp_path)
+        if not os.path.exists(self.output_csv):
+            playdata.to_csv(self.output_csv)
         else:
             pass
 
     def load_playdata(self):
+        # Load all playdata for this player
         play_df = pd.read_hdf(self.params["data_path_in"], key=self.playerkey)
         return play_df
 
-    def df_custom_columns(self):  # This actually writes the data and is misleading
-        df = self.playdata_raw.copy()
+    def df_custom_columns(self):
+        playdata_raw = self.load_playdata()
+        df = playdata_raw.copy()
+        playdata_raw = None
 
         # Distance
         df['x_change'] = df['x'].diff().fillna(0)
@@ -196,7 +204,7 @@ class NFLPlayer:
 
         return df
 
-    def injury_play_dfs(self):
+    def injury_play_dfs(self):  # Currently not using this, but will in future commits
         df = self.playdata.loc[self.playdata['PlayKey'] == self.injuryplay]
         df_keys = ['Negative', 'Positive', 'None']
 
@@ -251,7 +259,6 @@ def get_x_y_start_end(df):
     return start_pt, end_pt
 
 
-# TODO START hERE for converting
 def generate_custom_csv(params):
     # Discover injury keys from csv files in directory
     injury_keys = _discover_injury(data_dir=params["data_path_search"])
@@ -265,7 +272,9 @@ def generate_custom_csv(params):
         for unique_player in unique_players:
             player_df = df.loc[df['PlayerKey'] == unique_player]
             player = NFLPlayer(df=player_df, bodypart=injury_key, params=params)
-            # player
             print(player.playerkey)
-            player.write_csv()
-            player = None
+            if player.check_output():  # generate if doesn't exist
+                player = None
+            else:
+                player.generate_playdata()
+                player = None
