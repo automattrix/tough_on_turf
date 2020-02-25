@@ -246,7 +246,7 @@ def _prep_unique_players(df):
 
 # Get injury keys
 def _discover_injury(data_dir):
-    injury_csvs_raw = os.listdir(data_dir)
+    injury_csvs_raw = [x for x in os.listdir(data_dir) if not str(x).startswith('.git')]
     print(injury_csvs_raw)
     injury_keys = [str(tmp_injury).split('_')[0].strip() for tmp_injury in injury_csvs_raw]
     return injury_keys
