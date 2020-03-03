@@ -26,7 +26,7 @@ def create_pipeline(**kwargs):
             node(
                 func=list_player_csvs,
                 inputs=["params:players_injury"],
-                outputs="csv_path",
+                outputs="csv_paths_list",
                 name="list_player_csvs",
             ),
 
