@@ -57,11 +57,16 @@ def _write_csv(csv_list, csv_out):
 
 def list_player_csvs(params):
     print("aggregating player data")
-    lof = _list_files(in_path=params["data_path_in"], directory=f'{params["data_path_in"]}/{params["bodypart"]}')
-    output_path = f'{params["data_path_out"]}/{params["bodypart"]}_list.csv'
-    print(output_path)
-    _write_csv(csv_list=lof, csv_out=output_path)
-    return output_path
+    bodyparts = [x for x in os.listdir(params["data_path_in"]) if not str(x).startswith('.git')]
+
+    output_paths = []
+    for bodypart in bodyparts:
+        lof = _list_files(in_path=params["data_path_in"], directory=f'{params["data_path_in"]}/{bodypart}')
+        output_path = f'{params["data_path_out"]}/{bodypart}_list.csv'
+        print(output_path)
+        _write_csv(csv_list=lof, csv_out=output_path)
+        output_paths.append(output_path)
+    return output_paths
 
 
 def _create_injury_dict(df, params):

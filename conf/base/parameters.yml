@@ -13,7 +13,6 @@ nfl_trackdata:
 
 
 players_injury:
-  bodypart: knee
   data_path_in: './data/02_intermediate/player_injury_csvs/'
   data_path_out: './data/02_intermediate/'
 
