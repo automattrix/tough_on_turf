@@ -34,12 +34,13 @@ def create_pipelines(**kwargs) -> Dict[str, Pipeline]:
         A mapping from a pipeline name to a ``Pipeline`` object.
 
     """
-    prepare_data_pipeline = p_d.create_pipeline()
-    #group_metrics_pipeline = g_m.create_pipeline()
+    prepare_data_pipeline = p_d.create_pipeline()  # outputs list of "data/02_intermediate/bodypart_list" files
+    group_metrics_pipeline = g_m.create_pipeline()
 
     return {
         "prepare_data": prepare_data_pipeline,
-        "__default__": prepare_data_pipeline,
+        "calc_group_metrics": group_metrics_pipeline,
+        "__default__": prepare_data_pipeline + group_metrics_pipeline,
 
     }
 
