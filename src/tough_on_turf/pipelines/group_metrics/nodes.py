@@ -441,7 +441,9 @@ def write_to_db(groupvalue, dir, num_values, d):
         current_value += 1
 
 
-def compare_rotation(d1, d2, params):
+def compare_rotation(df_list, params):
+
+
     print("Comparing body and head rotation")
     # TODO sort by fastest direction change per sec
     # TODO sort by biggest change in direction
@@ -454,7 +456,9 @@ def compare_rotation(d1, d2, params):
 
     # TODO create a function that determines whether or not part of a body/head dir group overlaps with another group
     # d1 head
+    d1 = df_list[0]
     # d2 body
+    d2 = df_list[1]
 
     # I need the ID as a column, so reset the index
     d1['data'].reset_index(inplace=True)
