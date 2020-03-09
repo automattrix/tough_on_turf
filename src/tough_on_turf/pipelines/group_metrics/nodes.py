@@ -1,4 +1,13 @@
 import pandas as pd
+import sqlite3
+import os
+
+# start here
+
+
+def create_bodypart_df_list(csv_list):
+    df_list = [pd.read_csv(csv_path) for csv_path in csv_list]
+    return df_list
 
 
 class Player:
@@ -49,10 +58,8 @@ def calc_speed(df):
 #  CALC SPEED END ------------------------------------------------------------------------
 
 #  CALC GROUPMETRICS START ------------------------------------------------------------------------
-import pandas as pd
-import sqlite3
-import os
-import database
+
+
 
 
 def connect_db():
@@ -273,61 +280,63 @@ def calc_angle_diff(o, dir):
     return angle_diff
 
 
-def calc_metrics(df, dfkey):
-    if os.path.exists('./groupdb.sqlite'):
-        clear_db()
-        write_current_group(group_value=0, direction_type=dfkey)
-    else:
-        # TODO make a db init function to create all the required tables
-        create_table()
-        create_table_dirchange()
-        write_current_group(group_value=0, direction_type=dfkey)
+def calc_metrics(df, params):
 
-    print(f"Calculating Rotation for {dfkey}")
-    df = df.copy()
+    dir_dicts_list = []
+    for dfkey in params['df_keys']:
 
-    # Calculate relative difference in degrees between head and body orientation
-    df['head_v_body_diff'] = df[['o', 'dir']].apply(lambda x: calc_angle_diff(o=x['o'], dir=x['dir']), axis=1)
+        if os.path.exists('./groupdb.sqlite'):
+            clear_db()
+            write_current_group(group_value=0, direction_type=dfkey)
+        else:
+            # TODO make a db init function to create all the required tables
+            create_table()
+            create_table_dirchange()
+            write_current_group(group_value=0, direction_type=dfkey)
 
-    # Calculate difference in orientation between measurements
-    df["delta"] = df[dfkey].diff().fillna(0)
+        print(f"Calculating Rotation for {dfkey}")
+        df = df.copy()
 
-    # Calculate left of right change in direction
-    df['pos_neg_orientation'] = df['delta'].apply(pos_neg_orientation)
+        # Calculate relative difference in degrees between head and body orientation
+        df['head_v_body_diff'] = df[['o', 'dir']].apply(lambda x: calc_angle_diff(o=x['o'], dir=x['dir']), axis=1)
 
-    # Create new column shifted up by 1 row to compare current dir measurement to next dir measurement
-    df['direction_shift'] = df['pos_neg_orientation'].shift(periods=-1, fill_value="no change")
+        # Calculate difference in orientation between measurements
+        df["delta"] = df[dfkey].diff().fillna(0)
 
-    # Calculate groups ----------
-    # A direction value is considered to be in the same group if the player direction has not changed
-    df['groups'] = df[['pos_neg_orientation', 'direction_shift']].apply(
-        lambda i: calc_groups(current_direction=i['pos_neg_orientation'], next_direction=i['direction_shift'], dfkey=dfkey), axis=1)
+        # Calculate left of right change in direction
+        df['pos_neg_orientation'] = df['delta'].apply(pos_neg_orientation)
 
-    # Calculate change in direction ---------
-    unique_groups = df['groups'].unique()
+        # Create new column shifted up by 1 row to compare current dir measurement to next dir measurement
+        df['direction_shift'] = df['pos_neg_orientation'].shift(periods=-1, fill_value="no change")
 
-    for group in unique_groups:
-        group_df = df.loc[df['groups'] == group]
-        # Calculate change in direction and angles, and write to database
-        calc_dir_change(groupdf=group_df, dfkey=dfkey)
+        # Calculate groups ----------
+        # A direction value is considered to be in the same group if the player direction has not changed
+        df['groups'] = df[['pos_neg_orientation', 'direction_shift']].apply(
+            lambda i: calc_groups(current_direction=i['pos_neg_orientation'], next_direction=i['direction_shift'], dfkey=dfkey), axis=1)
 
-    dir_df = read_dirchange()
+        # Calculate change in direction ---------
+        unique_groups = df['groups'].unique()
 
-    # Find min and max dir change
-    max_dir = dir_df['dirvalue'].max()
-    max_duration = dir_df['timesum'].max()
+        for group in unique_groups:
+            group_df = df.loc[df['groups'] == group]
+            # Calculate change in direction and angles, and write to database
+            calc_dir_change(groupdf=group_df, dfkey=dfkey)
 
-    # Add additional columns, returns a dict, containing a DataFrame
-    dir_dict = calc_pct_of_max(dir_changes=dir_df, maxdir=max_dir, maxduration=max_duration)
-    return dir_dict
+        dir_df = read_dirchange()
+
+        # Find min and max dir change
+        max_dir = dir_df['dirvalue'].max()
+        max_duration = dir_df['timesum'].max()
+
+        # Add additional columns, returns a dict, containing a DataFrame
+        dir_dict = calc_pct_of_max(dir_changes=dir_df, maxdir=max_dir, maxduration=max_duration)
+        dir_dicts_list.append(dir_dict)
+    return dir_dicts_list
 #  CALC GROUPMETRICS END ------------------------------------------------------------------------
 
 
 #  CALC COMPARE START ------------------------------------------------------------------------
 
-import pandas as pd
-import sqlite3
-import os
 
 
 # I'm so sorry I'm making another database function instead of making a generic database function like I should
@@ -481,9 +490,7 @@ def compare_rotation(d1, d2):
 #  CALC COMPARE END ------------------------------------------------------------------------
 
 
-
 #  CALC RISK START ------------------------------------------------------------------------
-
 def score(d, tmp_df):
     df = tmp_df['data']
 
