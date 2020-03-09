@@ -79,7 +79,7 @@ def create_table_group():
 
 # TODO rename function and db table to reflect what is being written
 def create_table_dirchange():
-    con = connect_db()
+    con = connect_db_group()
     cur = con.cursor()
     group_sql = """
         CREATE TABLE group_metrics (
@@ -111,7 +111,7 @@ def write_dir_change(dir_value, dirtype, timesum, num_values, direction, rel_ang
                      rel_ang_change, rel_ang_min, rel_ang_max, rel_ang_diff, vel_avg, vel_avg_change, vel_min, vel_max,
                      vel_change_min, vel_change_max):  # TODO make a generic sql write function UGH DO IT ALREADY
     insert_value = float(dir_value)
-    con = connect_db()
+    con = connect_db_group()
     cur = con.cursor()
 
     parameters = (insert_value, dirtype, timesum, num_values, direction, rel_ang_diff_start, rel_ang_diff_end,
@@ -127,7 +127,7 @@ def write_dir_change(dir_value, dirtype, timesum, num_values, direction, rel_ang
 
 def write_current_group(group_value, direction_type):
     insert_value = int(group_value)
-    con = connect_db()
+    con = connect_db_group()
     cur = con.cursor()
     parameters = (insert_value, direction_type)
     cur.execute("INSERT OR IGNORE INTO dirgroups VALUES (NULL, ?, ?)", parameters)
@@ -137,7 +137,7 @@ def write_current_group(group_value, direction_type):
 
 
 def read_dirchange():
-    con = connect_db()
+    con = connect_db_group()
     read_sql = "select id, dirvalue, dirtype, timesum, num_values, direction, rel_ang_diff_start, " \
                "rel_ang_diff_end, rel_ang_diff_change, rel_ang_min, rel_ang_max, rel_ang_diff, vel_avg, " \
                "vel_avg_change, vel_min, vel_max, vel_change_min, vel_change_max " \
@@ -149,7 +149,7 @@ def read_dirchange():
 
 
 def read_current_group():
-    con = connect_db()
+    con = connect_db_group()
     cur = con.cursor()
     read_sql = "select id, groupvalue, dirtype from dirgroups ORDER BY id desc LIMIT 1;"
     cur.execute(read_sql)
@@ -335,8 +335,6 @@ def calc_metrics(df, params):
 
 #  CALC COMPARE START ------------------------------------------------------------------------
 
-
-
 # I'm so sorry I'm making another database function instead of making a generic database function like I should
 # But here we are
 # If you're reading this, I promise I'll clean up this code before I call this project complete
@@ -369,7 +367,7 @@ def create_tables_compare():
 
 
 def clear_db_compare():
-    con = connect_db()
+    con = connect_db_compare()
     cur = con.cursor()
     delete_dirgroups_d1 = "DELETE FROM t_overlap_d1;"
     delete_dirgroups_d2 = "DELETE FROM t_overlap_d2;"
@@ -386,7 +384,7 @@ def clear_db_compare():
 
 
 def read_groupvalues(d):
-    con = connect_db()
+    con = connect_db_compare()
     read_sql = f"select id, group_value, d1_dir FROM t_overlap_{d} ORDER BY id asc;"
     current_group_val = pd.read_sql(sql=read_sql, con=con, index_col='id')
     print(current_group_val)
@@ -428,7 +426,7 @@ def read_joined_values(d, group):
 def write_to_db(groupvalue, dir, num_values, d):
     current_value = 1
 
-    con = connect_db()
+    con = connect_db_compare()
     cur = con.cursor()
 
     while current_value < (num_values+1):
