@@ -43,7 +43,7 @@ def generate_h5(params):
 
 
 def _list_files(in_path, directory):
-    tmp_csv_files = os.listdir(directory)
+    tmp_csv_files = [x for x in os.listdir(directory) if not str(x).startswith('.git')]
     csv_files = [f'{in_path}{csv_file}' for csv_file in tmp_csv_files]
     return csv_files
 
