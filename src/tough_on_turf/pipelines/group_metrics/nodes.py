@@ -280,6 +280,9 @@ def calc_angle_diff(o, dir):
 
 def calc_metrics(df, params):
 
+    print(df)
+    # TODO WOOPS! Forgot to add the bit that loads the actual dataframe from the path...
+    exit()
     dir_dicts_list = []
     for dfkey in params['df_keys']:
 
@@ -294,7 +297,7 @@ def calc_metrics(df, params):
 
         print(f"Calculating Rotation for {dfkey}")
         df = df.copy()
-
+        print(df.head())
         # Calculate relative difference in degrees between head and body orientation
         df['head_v_body_diff'] = df[['o', 'dir']].apply(lambda x: calc_angle_diff(o=x['o'], dir=x['dir']), axis=1)
 
@@ -490,7 +493,7 @@ def compare_rotation(df_list, params):
 
 
 #  CALC RISK START ------------------------------------------------------------------------
-def score(d, df_list):
+def score(df_list):
     # Temporarily manually specifying the 'dir' df, instead of orientation df
     # Will move this to parameters settings soon
     df = df_list[1]['data']
@@ -499,5 +502,8 @@ def score(d, df_list):
     df['score'] = ((df['dirvalue'] + df['vel_avg'] + df['vel_avg_change']) / df['timesum']) + \
             (df['rel_ang_diff_change'] / df['timesum']) + \
             ((df['rel_ang_diff'] - abs(df['rel_ang_diff_change'])) / df['timesum'])
+    print("RISKY")
+    print(df.head())
+    exit()
     return df
 #  CALC RISK END ------------------------------------------------------------------------
