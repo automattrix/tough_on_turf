@@ -25,5 +25,8 @@ generate_custom_csv:
   data_path_out: './data/02_intermediate/player_injury_csvs/'
 
 calc_metrics:
-  groupdb_path: 'data/02_intermediate/groupdb.sqlite'
+  db_path: 'data/02_intermediate/groupdb.sqlite'
   df_keys: ['o', 'dir']
+
+compare_rotation:
+  db_path: 'data/02_intermediate/comparegroups.sqlite'
