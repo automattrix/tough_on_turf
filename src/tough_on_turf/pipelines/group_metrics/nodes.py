@@ -60,8 +60,6 @@ def calc_speed(df):
 #  CALC GROUPMETRICS START ------------------------------------------------------------------------
 
 
-
-
 def connect_db():
     con = sqlite3.connect('./groupdb.sqlite')
     return con
@@ -285,7 +283,7 @@ def calc_metrics(df, params):
     dir_dicts_list = []
     for dfkey in params['df_keys']:
 
-        if os.path.exists('./groupdb.sqlite'):
+        if os.path.exists(params['db_path']):
             clear_db()
             write_current_group(group_value=0, direction_type=dfkey)
         else:
