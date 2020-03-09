@@ -1,5 +1,5 @@
 from kedro.pipeline import Pipeline, node
-from .nodes import create_bodypart_df_list, calc_metrics
+from .nodes import create_bodypart_df_list, calc_metrics, compare_rotation
 
 
 def create_pipeline(**kwargs):
@@ -16,6 +16,12 @@ def create_pipeline(**kwargs):
                 inputs=["csv_paths_list", "params:calc_metrics"],
                 outputs="o_dir_df_list",
                 name="calc_metrics",
+            ),
+            node(
+                func=compare_rotation,
+                inputs=["o_dir_df_list", "params:compare_rotation"],
+                outputs="rotation_df_list",
+                name="compare_rotation",
             ),
         ]
     )
