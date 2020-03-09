@@ -443,7 +443,6 @@ def write_to_db(groupvalue, dir, num_values, d):
 
 def compare_rotation(df_list, params):
 
-
     print("Comparing body and head rotation")
     # TODO sort by fastest direction change per sec
     # TODO sort by biggest change in direction
@@ -493,13 +492,14 @@ def compare_rotation(df_list, params):
 
 
 #  CALC RISK START ------------------------------------------------------------------------
-def score(d, tmp_df):
-    df = tmp_df['data']
+def score(d, df_list):
+    # Temporarily manually specifying the 'dir' df, instead of orientation df
+    # Will move this to parameters settings soon
+    df = df_list[1]['data']
 
     # arbitrary risk score
     df['score'] = ((df['dirvalue'] + df['vel_avg'] + df['vel_avg_change']) / df['timesum']) + \
             (df['rel_ang_diff_change'] / df['timesum']) + \
             ((df['rel_ang_diff'] - abs(df['rel_ang_diff_change'])) / df['timesum'])
     return df
-
 #  CALC RISK END ------------------------------------------------------------------------
