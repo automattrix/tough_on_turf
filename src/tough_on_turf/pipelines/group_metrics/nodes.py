@@ -60,13 +60,13 @@ def calc_speed(df):
 #  CALC GROUPMETRICS START ------------------------------------------------------------------------
 
 
-def connect_db():
+def connect_db_group():
     con = sqlite3.connect('./groupdb.sqlite')
     return con
 
 
-def create_table():
-    con = connect_db()
+def create_table_group():
+    con = connect_db_group()
     cur = con.cursor()
     group_sql = """
     CREATE TABLE dirgroups (
@@ -158,8 +158,8 @@ def read_current_group():
     return current_group
 
 
-def clear_db():
-    con = connect_db()
+def clear_db_group():
+    con = connect_db_group()
     cur = con.cursor()
     delete_dirgroups = "DELETE FROM dirgroups;"
     cur.execute(delete_dirgroups)
@@ -284,11 +284,11 @@ def calc_metrics(df, params):
     for dfkey in params['df_keys']:
 
         if os.path.exists(params['db_path']):
-            clear_db()
+            clear_db_group()
             write_current_group(group_value=0, direction_type=dfkey)
         else:
             # TODO make a db init function to create all the required tables
-            create_table()
+            create_table_group()
             create_table_dirchange()
             write_current_group(group_value=0, direction_type=dfkey)
 
@@ -342,13 +342,13 @@ def calc_metrics(df, params):
 # If you're reading this, I promise I'll clean up this code before I call this project complete
 
 
-def connect_db():
-    con = sqlite3.connect('./comparegroups.sqlite')
+def connect_db_compare(params):
+    con = sqlite3.connect(params['db_path'])
     return con
 
 
-def create_tables():
-    con = connect_db()
+def create_tables_compare():
+    con = connect_db_compare()
     cur = con.cursor()
     group_sql_d1 = """
     CREATE TABLE t_overlap_d1 (
@@ -368,7 +368,7 @@ def create_tables():
     con.close()
 
 
-def clear_db():
+def clear_db_compare():
     con = connect_db()
     cur = con.cursor()
     delete_dirgroups_d1 = "DELETE FROM t_overlap_d1;"
@@ -409,7 +409,7 @@ def read_joined_values(d, group):
     else:
         exit("Invalid Key")
 
-    con = connect_db()
+    con = connect_db_compare()
 
     read_sql = f"select a.id as id, a.group_value, a.{d}_dir, b.group_value, b.{otherkey}_dir FROM t_overlap_{d} a " \
         f"JOIN t_overlap_{otherkey} b ON a.id = b.id WHERE a.group_value = {group} ORDER BY a.id asc;"
@@ -441,16 +441,16 @@ def write_to_db(groupvalue, dir, num_values, d):
         current_value += 1
 
 
-def compare_rotation(d1, d2):
+def compare_rotation(d1, d2, params):
     print("Comparing body and head rotation")
     # TODO sort by fastest direction change per sec
     # TODO sort by biggest change in direction
     # TODO sort by longest change in direction
 
-    if os.path.exists('./comparegroups.sqlite'):
-        clear_db()
+    if os.path.exists(params['db_path']):
+        clear_db_compare()
     else:
-        create_tables()
+        create_tables_compare()
 
     # TODO create a function that determines whether or not part of a body/head dir group overlaps with another group
     # d1 head
