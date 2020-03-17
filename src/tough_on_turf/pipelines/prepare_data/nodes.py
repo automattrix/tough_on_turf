@@ -42,9 +42,9 @@ def generate_h5(params):
         print("Not generating new HDF output file")
 
 
-def _list_files(in_path, directory):
+def _list_files(in_path, bodypart, directory):
     tmp_csv_files = [x for x in os.listdir(directory) if not str(x).startswith('.git')]
-    csv_files = [f'{in_path}{csv_file}' for csv_file in tmp_csv_files]
+    csv_files = [f'{in_path}{bodypart}/{csv_file}' for csv_file in tmp_csv_files]
     return csv_files
 
 
@@ -61,7 +61,7 @@ def list_player_csvs(params):
 
     output_paths = []
     for bodypart in bodyparts:
-        lof = _list_files(in_path=params["data_path_in"], directory=f'{params["data_path_in"]}/{bodypart}')
+        lof = _list_files(in_path=params["data_path_in"], bodypart=bodypart, directory=f'{params["data_path_in"]}/{bodypart}')
         output_path = f'{params["data_path_out"]}/{bodypart}_list.csv'
         print(output_path)
         _write_csv(csv_list=lof, csv_out=output_path)
