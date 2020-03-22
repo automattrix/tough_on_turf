@@ -330,7 +330,7 @@ def calc_metrics(df_csv_list, params):
                     print(f"Calculating Rotation for {dfkey}")
                     df = play_df.copy()
                     print(df.head())
-                    play_df = None
+
 
                     # Calculate relative difference in degrees between head and body orientation
                     print("head v body")
@@ -376,6 +376,7 @@ def calc_metrics(df_csv_list, params):
                     # Add additional columns, returns a dict, containing a DataFrame
                     dir_dict = calc_pct_of_max(dir_changes=dir_df, maxdir=max_dir, maxduration=max_duration)
                     o_dir_list.append(dir_dict)
+                play_df = None
                 print(compare_rotation)
                 head_vs_body = compare_rotation(df_list=o_dir_list, params=params)
                 risk_score = score(df_list=head_vs_body)
@@ -563,6 +564,5 @@ def score(df_list):
         ((df['rel_ang_diff'] - abs(df['rel_ang_diff_change'])) / df['timesum'])
     print("RISKY")
     print(df.head())
-    exit()
     return df
 #  CALC RISK END ------------------------------------------------------------------------
