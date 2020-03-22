@@ -1,4 +1,6 @@
 
+base_paths:
+  data_intermediate: './data/02_intermediate/'
 
 data_prep:
   data_path_in: './data/01_raw/nfl-playing-surface-analytics/PlayerTrackData.csv'
@@ -7,10 +9,8 @@ data_prep:
   compression_level: 9
   chunksize: 100000
 
-
 nfl_trackdata:
   data_path_in: 'data/02_intermediate/nfl_trackdata.h5'
-
 
 players_injury:
   data_path_in: './data/02_intermediate/player_injury_csvs/'
@@ -25,8 +25,6 @@ generate_custom_csv:
   data_path_out: './data/02_intermediate/player_injury_csvs/'
 
 calc_metrics:
-  db_path: 'data/02_intermediate/groupdb.sqlite'
+  db_path_group: 'data/02_intermediate/groupdb.sqlite'
+  db_path_compare: 'data/02_intermediate/comparegroups.sqlite'
   df_keys: ['o', 'dir']
-
-compare_rotation:
-  db_path: 'data/02_intermediate/comparegroups.sqlite'
