@@ -300,6 +300,8 @@ def calc_metrics(df_csv_list, params):
     # bodypart_list: df
     df_dict = _player_csv_dict(df_csv_list=df_csv_list)
 
+    score_output = open('./data/02_intermediate/risk_score_tmp.csv', 'w')
+    score_output.write('PlayKey, RiskScore, WeightedRiskScore')
     for bodypart_list, df in df_dict.items():
 
         print(bodypart_list)  # ankle_list
@@ -379,9 +381,8 @@ def calc_metrics(df_csv_list, params):
 
                 print(risk_score['score'].mean())
                 print(weighted_score)
-
-                exit()
-    exit()
+                score_output.write(f'{play},{risk_score},{weighted_score}')
+    score_output.close()
     return None
 #  CALC GROUPMETRICS END ------------------------------------------------------------------------
 
