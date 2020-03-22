@@ -30,3 +30,7 @@ play_track_data:
 injury_record:
   type: CSVLocalDataSet
   filepath: data/01_raw/nfl-playing-surface-analytics/InjuryRecord.csv
+
+risk_scores:
+  type: CSVLocalDataSet
+  filepath: /data/02_intermediate/risk_score_tmp.csv
