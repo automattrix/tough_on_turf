@@ -187,19 +187,16 @@ def calc_groups(params, current_direction, next_direction, dfkey):
     # If player direction has not changed, use the same group value
     # Else, create new group value
     if current_direction == next_direction:
-        print(current_group)
         return current_group
     else:
         next_group = current_group + 1
         write_current_group(params=params, group_value=next_group, direction_type=dfkey)
-        print(next_group)
         return next_group
 
 
 def calc_dir_change(params, groupdf, dfkey):
     # TODO rename function to reflect calculations inside -- not just direction changes
     df = groupdf
-    # print(df.keys())
     group_direction = df['direction_shift'].iloc[0]
     time_sum = df['time_interval'].sum()
     num_measurements = len(df.index)
@@ -311,7 +308,6 @@ def calc_metrics(df_csv_list, params):
             play_keys = player.playerkeys()
 
             for play in play_keys:
-                print(play)
                 # Load the data for the play
                 play_df = player.player_data.loc[player.player_data['PlayKey'] == play]
 
@@ -362,9 +358,7 @@ def calc_metrics(df_csv_list, params):
                     print("dir change")
                     for group in unique_groups:
                         group_df = df.loc[df['groups'] == group]
-                        print(group_df.head())
                         # Calculate change in direction and angles, and write to database
-                        print(group)
                         calc_dir_change(params=params, groupdf=group_df, dfkey=dfkey)
 
                     dir_df = read_dirchange(params=params)
@@ -377,7 +371,7 @@ def calc_metrics(df_csv_list, params):
                     dir_dict = calc_pct_of_max(dir_changes=dir_df, maxdir=max_dir, maxduration=max_duration)
                     o_dir_list.append(dir_dict)
                 play_df = None
-                print(compare_rotation)
+                print("compare_rotation")
                 head_vs_body = compare_rotation(df_list=o_dir_list, params=params)
                 risk_score = score(df_list=head_vs_body)
 
