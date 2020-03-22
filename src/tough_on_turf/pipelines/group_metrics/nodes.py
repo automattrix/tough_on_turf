@@ -301,7 +301,7 @@ def calc_metrics(df_csv_list, params):
     df_dict = _player_csv_dict(df_csv_list=df_csv_list)
 
     score_output = open('./data/02_intermediate/risk_score_tmp.csv', 'w')
-    score_output.write('PlayKey, RiskScore, WeightedRiskScore')
+    score_output.write('PlayKey, RiskScore, WeightedRiskScore\n')
     for bodypart_list, df in df_dict.items():
 
         print(bodypart_list)  # ankle_list
@@ -314,6 +314,7 @@ def calc_metrics(df_csv_list, params):
                 play_df = player.player_data.loc[player.player_data['PlayKey'] == play]
 
                 o_dir_list = []
+                print(play)
                 for dfkey in params['df_keys']:
 
                     if os.path.exists(params['db_path_group']):
@@ -325,39 +326,39 @@ def calc_metrics(df_csv_list, params):
                         create_table_dirchange(params)
                         write_current_group(params=params, group_value=0, direction_type=dfkey)
 
-                    print(f"Calculating Rotation for {dfkey}")
+                    # print(f"Calculating Rotation for {dfkey}")
                     df = play_df.copy()
-                    print(df.head())
+                    # print(df.head())
 
 
                     # Calculate relative difference in degrees between head and body orientation
-                    print("head v body")
+                    # print("head v body")
                     df['head_v_body_diff'] = df[['o', 'dir']].apply(lambda x: calc_angle_diff(
                         o=x['o'], direction=x['dir']), axis=1
                                                                     )
 
                     # Calculate difference in orientation between measurements
-                    print("delta")
+                    # print("delta")
                     df["delta"] = df[dfkey].diff().fillna(0)
 
                     # Calculate left of right change in direction
-                    print("pos/neg")
+
                     df['pos_neg_orientation'] = df['delta'].apply(pos_neg_orientation)
 
                     # Create new column shifted up by 1 row to compare current dir measurement to next dir measurement
-                    print("dir shift")
+
                     df['direction_shift'] = df['pos_neg_orientation'].shift(periods=-1, fill_value="no change")
 
                     # Calculate groups ----------
                     # A direction value is considered to be in the same group if the player direction has not changed
-                    print("groups")
+
                     df['groups'] = df[['pos_neg_orientation', 'direction_shift']].apply(
                         lambda i: calc_groups(params=params, current_direction=i['pos_neg_orientation'],
                                               next_direction=i['direction_shift'], dfkey=dfkey), axis=1)
 
                     # Calculate change in direction ---------
                     unique_groups = df['groups'].unique()
-                    print("dir change")
+
                     for group in unique_groups:
                         group_df = df.loc[df['groups'] == group]
                         # Calculate change in direction and angles, and write to database
@@ -373,15 +374,17 @@ def calc_metrics(df_csv_list, params):
                     dir_dict = calc_pct_of_max(dir_changes=dir_df, maxdir=max_dir, maxduration=max_duration)
                     o_dir_list.append(dir_dict)
                 play_df = None
-                print("compare_rotation")
+
                 head_vs_body = compare_rotation(df_list=o_dir_list, params=params)
                 risk_score = score(df_list=head_vs_body)
 
                 weighted_score = (risk_score['score'] * risk_score['timesum']).sum() / risk_score['timesum'].sum()
+                avg_score = risk_score['score'].mean()
 
                 print(risk_score['score'].mean())
                 print(weighted_score)
-                score_output.write(f'{play},{risk_score},{weighted_score}')
+
+                score_output.write(f'{play},{avg_score},{weighted_score}\n')
     score_output.close()
     return None
 #  CALC GROUPMETRICS END ------------------------------------------------------------------------
@@ -557,7 +560,7 @@ def score(df_list):
     df['score'] = ((df['dirvalue'] + df['vel_avg'] + df['vel_avg_change']) / df['timesum']) + \
         (df['rel_ang_diff_change'] / df['timesum']) + \
         ((df['rel_ang_diff'] - abs(df['rel_ang_diff_change'])) / df['timesum'])
-    print("RISKY")
-    print(df.head())
+    # print("RISKY")
+    # print(df.head())
     return df
 #  CALC RISK END ------------------------------------------------------------------------
