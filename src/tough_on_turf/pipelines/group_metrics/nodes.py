@@ -61,13 +61,13 @@ def calc_speed(df):
 #  CALC GROUPMETRICS START ------------------------------------------------------------------------
 
 
-def connect_db_group():
-    con = sqlite3.connect('./groupdb.sqlite')
+def connect_db_group(params):
+    con = sqlite3.connect(params['db_path_group'])
     return con
 
 
-def create_table_group():
-    con = connect_db_group()
+def create_table_group(params):
+    con = connect_db_group(params)
     cur = con.cursor()
     group_sql = """
     CREATE TABLE dirgroups (
@@ -79,8 +79,8 @@ def create_table_group():
 
 
 # TODO rename function and db table to reflect what is being written
-def create_table_dirchange():
-    con = connect_db_group()
+def create_table_dirchange(params):
+    con = connect_db_group(params)
     cur = con.cursor()
     group_sql = """
         CREATE TABLE group_metrics (
@@ -108,11 +108,11 @@ def create_table_dirchange():
     con.close()
 
 
-def write_dir_change(dir_value, dirtype, timesum, num_values, direction, rel_ang_diff_start, rel_ang_diff_end,
+def write_dir_change(params, dir_value, dirtype, timesum, num_values, direction, rel_ang_diff_start, rel_ang_diff_end,
                      rel_ang_change, rel_ang_min, rel_ang_max, rel_ang_diff, vel_avg, vel_avg_change, vel_min, vel_max,
                      vel_change_min, vel_change_max):  # TODO make a generic sql write function UGH DO IT ALREADY
     insert_value = float(dir_value)
-    con = connect_db_group()
+    con = connect_db_group(params)
     cur = con.cursor()
 
     parameters = (insert_value, dirtype, timesum, num_values, direction, rel_ang_diff_start, rel_ang_diff_end,
@@ -126,9 +126,9 @@ def write_dir_change(dir_value, dirtype, timesum, num_values, direction, rel_ang
     con.close()
 
 
-def write_current_group(group_value, direction_type):
+def write_current_group(params, group_value, direction_type):
     insert_value = int(group_value)
-    con = connect_db_group()
+    con = connect_db_group(params)
     cur = con.cursor()
     parameters = (insert_value, direction_type)
     cur.execute("INSERT OR IGNORE INTO dirgroups VALUES (NULL, ?, ?)", parameters)
@@ -137,8 +137,8 @@ def write_current_group(group_value, direction_type):
     con.close()
 
 
-def read_dirchange():
-    con = connect_db_group()
+def read_dirchange(params):
+    con = connect_db_group(params)
     read_sql = "select id, dirvalue, dirtype, timesum, num_values, direction, rel_ang_diff_start, " \
                "rel_ang_diff_end, rel_ang_diff_change, rel_ang_min, rel_ang_max, rel_ang_diff, vel_avg, " \
                "vel_avg_change, vel_min, vel_max, vel_change_min, vel_change_max " \
@@ -149,8 +149,8 @@ def read_dirchange():
     return current_group_df
 
 
-def read_current_group():
-    con = connect_db_group()
+def read_current_group(params):
+    con = connect_db_group(params)
     cur = con.cursor()
     read_sql = "select id, groupvalue, dirtype from dirgroups ORDER BY id desc LIMIT 1;"
     cur.execute(read_sql)
@@ -159,8 +159,8 @@ def read_current_group():
     return current_group
 
 
-def clear_db_group():
-    con = connect_db_group()
+def clear_db_group(params):
+    con = connect_db_group(params)
     cur = con.cursor()
     delete_dirgroups = "DELETE FROM dirgroups;"
     cur.execute(delete_dirgroups)
@@ -178,8 +178,8 @@ def clear_db_group():
     con.close()
 
 
-def calc_groups(current_direction, next_direction, dfkey):
-    tmp_group = read_current_group()
+def calc_groups(params, current_direction, next_direction, dfkey):
+    tmp_group = read_current_group(params)
 
     # Get current group value from database
     current_group = int(tmp_group[1])
@@ -190,14 +190,14 @@ def calc_groups(current_direction, next_direction, dfkey):
         return current_group
     else:
         next_group = current_group + 1
-        write_current_group(group_value=next_group, direction_type=dfkey)
+        write_current_group(params=params, group_value=next_group, direction_type=dfkey)
         return next_group
 
 
-def calc_dir_change(groupdf, dfkey):
+def calc_dir_change(params, groupdf, dfkey):
     # TODO rename function to reflect calculations inside -- not just direction changes
     df = groupdf
-    #print(df.keys())
+    # print(df.keys())
     group_direction = df['direction_shift'].iloc[0]
     time_sum = df['time_interval'].sum()
     num_measurements = len(df.index)
@@ -227,7 +227,7 @@ def calc_dir_change(groupdf, dfkey):
     vel_change_min = df['velocity_change'].min()
     vel_change_max = df['velocity_change'].max()
 
-    write_dir_change(dir_value=dir_change, dirtype=dfkey, timesum=time_sum, num_values=num_measurements,
+    write_dir_change(params=params, dir_value=dir_change, dirtype=dfkey, timesum=time_sum, num_values=num_measurements,
                      direction=group_direction, rel_ang_diff_start=relative_angle_diff_start,
                      rel_ang_diff_end=relative_angle_diff_end, rel_ang_change=relative_angle_diff_change,
                      rel_ang_min=relative_angle_min, rel_ang_max=relative_angle_max, rel_ang_diff=relative_angle_diff,
@@ -265,9 +265,9 @@ def pos_neg_orientation(orientation):
         return "no change"
 
 
-def calc_angle_diff(o, dir):
+def calc_angle_diff(o, direction):
     o_diff = (360 - o)
-    dir_diff = (360 - dir)
+    dir_diff = (360 - direction)
     abs_diff = abs(o_diff - dir_diff)
     tmp_angle_diff = 360 - abs_diff
 
@@ -299,62 +299,77 @@ def calc_metrics(df_csv_list, params):
 
     print(df_csv_list)
     # bodypart_list: df
-    df_list = _player_csv_dict(df_csv_list=df_csv_list)
+    df_dict = _player_csv_dict(df_csv_list=df_csv_list)
 
     dir_dicts_list = []
 
-    for bodypart, df in df_list.items():
-        for x in iterate_player(df=df):
+    for bodypart_list, df in df_dict.items():
 
-        for dfkey in params['df_keys']:
+        print(bodypart_list)  # ankle_list
+        for player in df.itertuples():
+            df = pd.read_csv(player[1])
 
-            if os.path.exists(params['db_path']):
-                clear_db_group()
-                write_current_group(group_value=0, direction_type=dfkey)
-            else:
-                # TODO make a db init function to create all the required tables
-                create_table_group()
-                create_table_dirchange()
-                write_current_group(group_value=0, direction_type=dfkey)
+            o_dir_list = []
+            for dfkey in params['df_keys']:
 
-            print(f"Calculating Rotation for {dfkey}")
-            df = df.copy()
-            print(df.head())
-            exit()
-            # Calculate relative difference in degrees between head and body orientation
-            df['head_v_body_diff'] = df[['o', 'dir']].apply(lambda x: calc_angle_diff(o=x['o'], dir=x['dir']), axis=1)
+                if os.path.exists(params['db_path_group']):
+                    clear_db_group(params)
+                    write_current_group(params=params, group_value=0, direction_type=dfkey)
+                else:
+                    # TODO make a db init function to create all the required tables
+                    create_table_group(params)
+                    create_table_dirchange(params)
+                    write_current_group(params=params, group_value=0, direction_type=dfkey)
 
-            # Calculate difference in orientation between measurements
-            df["delta"] = df[dfkey].diff().fillna(0)
+                print(f"Calculating Rotation for {dfkey}")
+                df = df.copy()
+                print(df.head())
 
-            # Calculate left of right change in direction
-            df['pos_neg_orientation'] = df['delta'].apply(pos_neg_orientation)
+                # Calculate relative difference in degrees between head and body orientation
+                df['head_v_body_diff'] = df[['o', 'dir']].apply(lambda x: calc_angle_diff(
+                    o=x['o'], direction=x['dir']), axis=1
+                                                                )
 
-            # Create new column shifted up by 1 row to compare current dir measurement to next dir measurement
-            df['direction_shift'] = df['pos_neg_orientation'].shift(periods=-1, fill_value="no change")
+                # Calculate difference in orientation between measurements
+                df["delta"] = df[dfkey].diff().fillna(0)
 
-            # Calculate groups ----------
-            # A direction value is considered to be in the same group if the player direction has not changed
-            df['groups'] = df[['pos_neg_orientation', 'direction_shift']].apply(
-                lambda i: calc_groups(current_direction=i['pos_neg_orientation'], next_direction=i['direction_shift'], dfkey=dfkey), axis=1)
+                # Calculate left of right change in direction
+                df['pos_neg_orientation'] = df['delta'].apply(pos_neg_orientation)
 
-            # Calculate change in direction ---------
-            unique_groups = df['groups'].unique()
+                # Create new column shifted up by 1 row to compare current dir measurement to next dir measurement
+                df['direction_shift'] = df['pos_neg_orientation'].shift(periods=-1, fill_value="no change")
 
-            for group in unique_groups:
-                group_df = df.loc[df['groups'] == group]
-                # Calculate change in direction and angles, and write to database
-                calc_dir_change(groupdf=group_df, dfkey=dfkey)
+                # Calculate groups ----------
+                # A direction value is considered to be in the same group if the player direction has not changed
+                df['groups'] = df[['pos_neg_orientation', 'direction_shift']].apply(
+                    lambda i: calc_groups(params=params, current_direction=i['pos_neg_orientation'], 
+                                          next_direction=i['direction_shift'], dfkey=dfkey), axis=1)
 
-            dir_df = read_dirchange()
+                # Calculate change in direction ---------
+                unique_groups = df['groups'].unique()
 
-            # Find min and max dir change
-            max_dir = dir_df['dirvalue'].max()
-            max_duration = dir_df['timesum'].max()
+                for group in unique_groups:
+                    group_df = df.loc[df['groups'] == group]
+                    # Calculate change in direction and angles, and write to database
+                    calc_dir_change(params=params, groupdf=group_df, dfkey=dfkey)
 
-            # Add additional columns, returns a dict, containing a DataFrame
-            dir_dict = calc_pct_of_max(dir_changes=dir_df, maxdir=max_dir, maxduration=max_duration)
-            dir_dicts_list.append({bodypart: dir_dict})
+                dir_df = read_dirchange(params=params)
+
+                # Find min and max dir change
+                max_dir = dir_df['dirvalue'].max()
+                max_duration = dir_df['timesum'].max()
+
+                # Add additional columns, returns a dict, containing a DataFrame
+                dir_dict = calc_pct_of_max(dir_changes=dir_df, maxdir=max_dir, maxduration=max_duration)
+                o_dir_list.append(dir_dict)
+
+            head_vs_body = compare_rotation(df_list=o_dir_list, params=params)
+            risk_score = score(df_list=head_vs_body)
+
+
+
+
+
     print(dir_dicts_list)
     exit()
     return dir_dicts_list
@@ -369,12 +384,12 @@ def calc_metrics(df_csv_list, params):
 
 
 def connect_db_compare(params):
-    con = sqlite3.connect(params['db_path'])
+    con = sqlite3.connect(params['db_path_compare'])
     return con
 
 
-def create_tables_compare():
-    con = connect_db_compare()
+def create_tables_compare(params):
+    con = connect_db_compare(params)
     cur = con.cursor()
     group_sql_d1 = """
     CREATE TABLE t_overlap_d1 (
@@ -394,8 +409,8 @@ def create_tables_compare():
     con.close()
 
 
-def clear_db_compare():
-    con = connect_db_compare()
+def clear_db_compare(params):
+    con = connect_db_compare(params)
     cur = con.cursor()
     delete_dirgroups_d1 = "DELETE FROM t_overlap_d1;"
     delete_dirgroups_d2 = "DELETE FROM t_overlap_d2;"
@@ -411,8 +426,8 @@ def clear_db_compare():
     con.close()
 
 
-def read_groupvalues(d):
-    con = connect_db_compare()
+def read_groupvalues(params, d):
+    con = connect_db_compare(params)
     read_sql = f"select id, group_value, d1_dir FROM t_overlap_{d} ORDER BY id asc;"
     current_group_val = pd.read_sql(sql=read_sql, con=con, index_col='id')
     print(current_group_val)
@@ -427,7 +442,7 @@ def compare_joined_values(a, b):
         return "opposite"
 
 
-def read_joined_values(d, group):
+def read_joined_values(params, d, group):
     if d == 'd1':
         otherkey = 'd2'
     elif d == 'd2':
@@ -435,7 +450,7 @@ def read_joined_values(d, group):
     else:
         exit("Invalid Key")
 
-    con = connect_db_compare()
+    con = connect_db_compare(params)
 
     read_sql = f"select a.id as id, a.group_value, a.{d}_dir, b.group_value, b.{otherkey}_dir FROM t_overlap_{d} a " \
         f"JOIN t_overlap_{otherkey} b ON a.id = b.id WHERE a.group_value = {group} ORDER BY a.id asc;"
@@ -451,10 +466,10 @@ def read_joined_values(d, group):
     return overlap_dir
 
 
-def write_to_db(groupvalue, dir, num_values, d):
+def write_to_db(params, groupvalue, dir, num_values, d):
     current_value = 1
 
-    con = connect_db_compare()
+    con = connect_db_compare(params)
     cur = con.cursor()
 
     while current_value < (num_values+1):
@@ -474,10 +489,10 @@ def compare_rotation(df_list, params):
     # TODO sort by biggest change in direction
     # TODO sort by longest change in direction
 
-    if os.path.exists(params['db_path']):
-        clear_db_compare()
+    if os.path.exists(params['db_path_compare']):
+        clear_db_compare(params)
     else:
-        create_tables_compare()
+        create_tables_compare(params)
 
     # TODO create a function that determines whether or not part of a body/head dir group overlaps with another group
     # d1 head
@@ -489,30 +504,34 @@ def compare_rotation(df_list, params):
     d1['data'].reset_index(inplace=True)
     d2['data'].reset_index(inplace=True)
 
-    #print(d1['data'].head())
-    #print(d2['data'].head())
+    # print(d1['data'].head())
+    # print(d2['data'].head())
     # Find number of values for each group where head and body were moving in the same direction
     # First write values to dtabase for each group
     d1['data'][['id', 'direction', 'num_values']].apply(lambda x: write_to_db(
-        d='d1', groupvalue=x['id'], dir=x['direction'], num_values=x['num_values']), axis=1)
+        params=params, d='d1', groupvalue=x['id'], dir=x['direction'], num_values=x['num_values']), axis=1)
 
     d2['data'][['id', 'direction', 'num_values']].apply(lambda x: write_to_db(
-        d='d2', groupvalue=x['id'], dir=x['direction'], num_values=x['num_values']), axis=1)
+        params=params, d='d2', groupvalue=x['id'], dir=x['direction'], num_values=x['num_values']), axis=1)
 
     # Now read back the values and compare
     # d1 head orientation
-    d1['data']['overlap'] = d1['data'][['id']].apply(lambda x: read_joined_values(d='d1', group=x['id']), axis=1)
+    d1['data']['overlap'] = d1['data'][['id']].apply(
+        lambda x: read_joined_values(params=params, d='d1', group=x['id']), axis=1
+    )
     d1['data']['overlap_pct'] = (d1['data']['overlap'] / d1['data']['num_values']) * 100
-    #print(d1['data'].head(50))
 
     # d2 body orientation
     # Leaning towards d2 (body) orientation being weighted more than d1, as the body generates more momentum
-    d2['data']['overlap'] = d2['data'][['id']].apply(lambda x: read_joined_values(d='d2', group=x['id']), axis=1)
+    d2['data']['overlap'] = d2['data'][['id']].apply(lambda x: read_joined_values(
+        params=params, d='d2', group=x['id']), axis=1
+                                                     )
+
     d2['data']['overlap_pct'] = (d2['data']['overlap'] / d2['data']['num_values']) * 100
-    #print(d2['data'].head(50))
+
 
     # Temporary output to csv
-    #d2['data'].to_csv('./test_compare_d2.csv')
+    # d2['data'].to_csv('./test_compare_d2.csv')
     return d1, d2
 #  CALC COMPARE END ------------------------------------------------------------------------
 
@@ -525,8 +544,8 @@ def score(df_list):
 
     # arbitrary risk score
     df['score'] = ((df['dirvalue'] + df['vel_avg'] + df['vel_avg_change']) / df['timesum']) + \
-            (df['rel_ang_diff_change'] / df['timesum']) + \
-            ((df['rel_ang_diff'] - abs(df['rel_ang_diff_change'])) / df['timesum'])
+        (df['rel_ang_diff_change'] / df['timesum']) + \
+        ((df['rel_ang_diff'] - abs(df['rel_ang_diff_change'])) / df['timesum'])
     print("RISKY")
     print(df.head())
     exit()
