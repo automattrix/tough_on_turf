@@ -356,7 +356,34 @@ class Player:
                     lambda i: self.calc_groups(current_direction=i['pos_neg_orientation'],
                                           next_direction=i['direction_shift']), axis=1)
                 print(df['groups'])
-                exit()
+                # Calculate change in direction ---------
+                unique_groups = df['groups'].unique()
+
+                for group in unique_groups:
+                    group_df = df.loc[df['groups'] == group]
+                    # Calculate change in direction and angles, and write to database
+                    calc_dir_change(params=self.params, groupdf=group_df, dfkey=dfkey)
+
+                dir_df = read_dirchange(params=self.params)
+
+                # Find min and max dir change
+                max_dir = dir_df['dirvalue'].max()
+                max_duration = dir_df['timesum'].max()
+
+                # Add additional columns, returns a dict, containing a DataFrame
+                dir_dict = calc_pct_of_max(dir_changes=dir_df, maxdir=max_dir, maxduration=max_duration)
+                o_dir_list.append(dir_dict)
+            play_df = None
+            head_vs_body = compare_rotation(df_list=o_dir_list, params=self.params)
+            risk_score = score(df_list=head_vs_body)
+
+            weighted_score = (risk_score['score'] * risk_score['timesum']).sum() / risk_score['timesum'].sum()
+            avg_score = risk_score['score'].mean()
+
+            print(risk_score['score'].mean())
+            print(weighted_score)
+
+            #return o_dir_list
 
 
 def calc_metrics(df_csv_list, params):
@@ -446,7 +473,7 @@ def calc_metrics(df_csv_list, params):
                     dir_dict = calc_pct_of_max(dir_changes=dir_df, maxdir=max_dir, maxduration=max_duration)
                     o_dir_list.append(dir_dict)
                 play_df = None
-
+                ###############
                 head_vs_body = compare_rotation(df_list=o_dir_list, params=params)
                 risk_score = score(df_list=head_vs_body)
 
