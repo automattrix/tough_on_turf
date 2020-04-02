@@ -11,21 +11,6 @@ def create_bodypart_df_list(csv_list):
     return df_list
 
 
-class Player:
-    def __init__(self, csv_path):
-        self.player_data_path = csv_path
-        self.player_data = self.load_df()
-
-    def load_df(self):
-        df = pd.read_csv(self.player_data_path)
-        return df
-
-    def playerkeys(self):
-        print("Calculating playkeys")
-        unique_playkeys = self.player_data['PlayKey'].unique()
-        return unique_playkeys
-
-
 #  CALC SPEED ------------------------------------------------------------------------
 def calc_speed(df):
     unique_velocities = df['pos_neg_vel'].unique()
@@ -178,6 +163,7 @@ def clear_db_group(params):
     con.close()
 
 
+# TODO this part is really slow
 def calc_groups(params, current_direction, next_direction, dfkey):
     tmp_group = read_current_group(params)
 
@@ -294,6 +280,85 @@ def _player_csv_dict(df_csv_list):
     return bodypart_dict
 
 
+class Player:
+    def __init__(self, csv_path, params):
+        self.player_data_path = csv_path
+        self.player_data = self.load_df()
+        self.current_group = 0
+        self.params = params
+
+    def load_df(self):
+        df = pd.read_csv(self.player_data_path)
+        return df
+
+    def playerkeys(self):
+        print("Calculating playkeys")
+        unique_playkeys = self.player_data['PlayKey'].unique()
+        return unique_playkeys
+
+    def calc_groups(self, current_direction, next_direction):
+
+        # If player direction has not changed, use the same group value
+        # Else, create new group value
+        if current_direction == next_direction:
+            return self.current_group
+        else:
+            self.current_group += 1
+            return self.current_group
+
+    def metrics(self):
+        print("calculating class player metrics")
+        for play in self.playerkeys():
+            # Load the data for the play
+            play_df = self.player_data.loc[self.player_data['PlayKey'] == play]
+
+            o_dir_list = []
+            print(play)
+            for dfkey in self.params['df_keys']:
+
+                if os.path.exists(self.params['db_path_group']):
+                    clear_db_group(self.params)
+                    write_current_group(params=self.params, group_value=0, direction_type=dfkey)
+                else:
+                    # TODO make a db init function to create all the required tables
+                    create_table_group(self.params)
+                    create_table_dirchange(self.params)
+                    write_current_group(params=self.params, group_value=0, direction_type=dfkey)
+
+                # print(f"Calculating Rotation for {dfkey}")
+                df = play_df.copy()
+                # print(df.head())
+
+                # Calculate relative difference in degrees between head and body orientation
+                # print("head v body")
+                df['head_v_body_diff'] = df[['o', 'dir']].apply(lambda x: calc_angle_diff(
+                    o=x['o'], direction=x['dir']), axis=1
+                                                                )
+
+                # Calculate difference in orientation between measurements
+                # print("delta")
+                df["delta"] = df[dfkey].diff().fillna(0)
+
+                # Calculate left of right change in direction
+
+                df['pos_neg_orientation'] = df['delta'].apply(pos_neg_orientation)
+
+                # Create new column shifted up by 1 row to compare current dir measurement to next dir measurement
+
+                df['direction_shift'] = df['pos_neg_orientation'].shift(periods=-1, fill_value="no change")
+
+                # Calculate groups ----------
+                # A direction value is considered to be in the same group if the player direction has not changed
+
+                print(df[['pos_neg_orientation', 'direction_shift']])
+
+                df['groups'] = df[['pos_neg_orientation', 'direction_shift']].apply(
+                    lambda i: self.calc_groups(current_direction=i['pos_neg_orientation'],
+                                          next_direction=i['direction_shift']), axis=1)
+                print(df['groups'])
+                exit()
+
+
 def calc_metrics(df_csv_list, params):
 
     print(df_csv_list)
@@ -306,7 +371,11 @@ def calc_metrics(df_csv_list, params):
 
         print(bodypart_list)  # ankle_list
         for player_file in df.itertuples():
-            player = Player(player_file[1])
+            player = Player(csv_path=player_file[1], params=params)
+            player.metrics()
+            exit()
+
+
             play_keys = player.playerkeys()
 
             for play in play_keys:
@@ -352,10 +421,13 @@ def calc_metrics(df_csv_list, params):
                     # Calculate groups ----------
                     # A direction value is considered to be in the same group if the player direction has not changed
 
+                    print(df[['pos_neg_orientation', 'direction_shift']])
+
                     df['groups'] = df[['pos_neg_orientation', 'direction_shift']].apply(
                         lambda i: calc_groups(params=params, current_direction=i['pos_neg_orientation'],
                                               next_direction=i['direction_shift'], dfkey=dfkey), axis=1)
-
+                    print(df['groups'])
+                    exit()
                     # Calculate change in direction ---------
                     unique_groups = df['groups'].unique()
 
@@ -564,3 +636,4 @@ def score(df_list):
     # print(df.head())
     return df
 #  CALC RISK END ------------------------------------------------------------------------
+
