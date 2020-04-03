@@ -284,6 +284,7 @@ class Player:
     def __init__(self, csv_path, params):
         self.player_data_path = csv_path
         self.player_data = self.load_df()
+        self.playerkey = self.player_data['PlayerKey'].iloc[0]
         self.current_group = 0
         self.params = params
 
@@ -306,7 +307,63 @@ class Player:
             self.current_group += 1
             return self.current_group
 
+    def compare_rotation(self, df_list):
+        print("Comparing body and head rotation")
+
+        if os.path.exists(self.params['db_path_compare']):
+            clear_db_compare(self.params)
+        else:
+            create_tables_compare(self.params)
+
+        # d1 head
+        d1 = df_list[0]
+        # d2 body
+        d2 = df_list[1]
+
+        # Need the ID as a column, so reset the index
+        d1['data'].reset_index(inplace=True)
+        d2['data'].reset_index(inplace=True)
+
+        # Find number of values for each group where head and body were moving in the same direction
+        # First write values to database for each group
+        d1['data'][['id', 'direction', 'num_values']].apply(lambda x: write_to_db(
+            params=self.params, d='d1', groupvalue=x['id'], dir=x['direction'], num_values=x['num_values']), axis=1)
+
+        d2['data'][['id', 'direction', 'num_values']].apply(lambda x: write_to_db(
+            params=self.params, d='d2', groupvalue=x['id'], dir=x['direction'], num_values=x['num_values']), axis=1)
+
+        # Now read back the values and compare
+        # d1 head orientation
+        # TODO THIS IS DEFINITELY CAUSING IO BOTTLENECK
+        d1['data']['overlap'] = d1['data'][['id']].apply(
+            lambda x: read_joined_values(params=self.params, d='d1', group=x['id']), axis=1
+        )
+        d1['data']['overlap_pct'] = (d1['data']['overlap'] / d1['data']['num_values']) * 100
+
+        # d2 body orientation
+        # Leaning towards d2 (body) orientation being weighted more than d1, as the body generates more momentum
+        d2['data']['overlap'] = d2['data'][['id']].apply(lambda x: read_joined_values(
+            params=self.params, d='d2', group=x['id']), axis=1)
+
+        d2['data']['overlap_pct'] = (d2['data']['overlap'] / d2['data']['num_values']) * 100
+
+        return d1, d2
+
+    def score(self, df_list):
+        # Temporarily manually specifying the 'dir' df, instead of orientation df
+        # Will move this to parameters settings soon
+        df = df_list[1]['data']
+
+        # arbitrary risk score, will probably revisit this
+        df['score'] = ((df['dirvalue'] + df['vel_avg'] + df['vel_avg_change']) / df['timesum']) + \
+                      (df['rel_ang_diff_change'] / df['timesum']) + \
+                      ((df['rel_ang_diff'] - abs(df['rel_ang_diff_change'])) / df['timesum'])
+
+        return df
+
     def metrics(self):
+        score_output = open(f'./data/02_intermediate/risk_score_{self.playerkey}.csv', 'w')
+        score_output.write('PlayKey, RiskScore, WeightedRiskScore\n')
         print("calculating class player metrics")
         for play in self.playerkeys():
             # Load the data for the play
@@ -349,13 +406,10 @@ class Player:
 
                 # Calculate groups ----------
                 # A direction value is considered to be in the same group if the player direction has not changed
-
-                print(df[['pos_neg_orientation', 'direction_shift']])
-
                 df['groups'] = df[['pos_neg_orientation', 'direction_shift']].apply(
                     lambda i: self.calc_groups(current_direction=i['pos_neg_orientation'],
-                                          next_direction=i['direction_shift']), axis=1)
-                print(df['groups'])
+                                               next_direction=i['direction_shift']), axis=1)
+
                 # Calculate change in direction ---------
                 unique_groups = df['groups'].unique()
 
@@ -374,16 +428,14 @@ class Player:
                 dir_dict = calc_pct_of_max(dir_changes=dir_df, maxdir=max_dir, maxduration=max_duration)
                 o_dir_list.append(dir_dict)
             play_df = None
-            head_vs_body = compare_rotation(df_list=o_dir_list, params=self.params)
-            risk_score = score(df_list=head_vs_body)
-
+            head_vs_body = self.compare_rotation(df_list=o_dir_list)
+            risk_score = self.score(df_list=head_vs_body)
             weighted_score = (risk_score['score'] * risk_score['timesum']).sum() / risk_score['timesum'].sum()
             avg_score = risk_score['score'].mean()
-
             print(risk_score['score'].mean())
             print(weighted_score)
-
-            #return o_dir_list
+            score_output.write(f'{play},{avg_score},{weighted_score}\n')
+        score_output.close()
 
 
 def calc_metrics(df_csv_list, params):
@@ -400,92 +452,7 @@ def calc_metrics(df_csv_list, params):
         for player_file in df.itertuples():
             player = Player(csv_path=player_file[1], params=params)
             player.metrics()
-            exit()
 
-
-            play_keys = player.playerkeys()
-
-            for play in play_keys:
-                # Load the data for the play
-                play_df = player.player_data.loc[player.player_data['PlayKey'] == play]
-
-                o_dir_list = []
-                print(play)
-                for dfkey in params['df_keys']:
-
-                    if os.path.exists(params['db_path_group']):
-                        clear_db_group(params)
-                        write_current_group(params=params, group_value=0, direction_type=dfkey)
-                    else:
-                        # TODO make a db init function to create all the required tables
-                        create_table_group(params)
-                        create_table_dirchange(params)
-                        write_current_group(params=params, group_value=0, direction_type=dfkey)
-
-                    # print(f"Calculating Rotation for {dfkey}")
-                    df = play_df.copy()
-                    # print(df.head())
-
-
-                    # Calculate relative difference in degrees between head and body orientation
-                    # print("head v body")
-                    df['head_v_body_diff'] = df[['o', 'dir']].apply(lambda x: calc_angle_diff(
-                        o=x['o'], direction=x['dir']), axis=1
-                                                                    )
-
-                    # Calculate difference in orientation between measurements
-                    # print("delta")
-                    df["delta"] = df[dfkey].diff().fillna(0)
-
-                    # Calculate left of right change in direction
-
-                    df['pos_neg_orientation'] = df['delta'].apply(pos_neg_orientation)
-
-                    # Create new column shifted up by 1 row to compare current dir measurement to next dir measurement
-
-                    df['direction_shift'] = df['pos_neg_orientation'].shift(periods=-1, fill_value="no change")
-
-                    # Calculate groups ----------
-                    # A direction value is considered to be in the same group if the player direction has not changed
-
-                    print(df[['pos_neg_orientation', 'direction_shift']])
-
-                    df['groups'] = df[['pos_neg_orientation', 'direction_shift']].apply(
-                        lambda i: calc_groups(params=params, current_direction=i['pos_neg_orientation'],
-                                              next_direction=i['direction_shift'], dfkey=dfkey), axis=1)
-                    print(df['groups'])
-                    exit()
-                    # Calculate change in direction ---------
-                    unique_groups = df['groups'].unique()
-
-                    for group in unique_groups:
-                        group_df = df.loc[df['groups'] == group]
-                        # Calculate change in direction and angles, and write to database
-                        calc_dir_change(params=params, groupdf=group_df, dfkey=dfkey)
-
-                    dir_df = read_dirchange(params=params)
-
-                    # Find min and max dir change
-                    max_dir = dir_df['dirvalue'].max()
-                    max_duration = dir_df['timesum'].max()
-
-                    # Add additional columns, returns a dict, containing a DataFrame
-                    dir_dict = calc_pct_of_max(dir_changes=dir_df, maxdir=max_dir, maxduration=max_duration)
-                    o_dir_list.append(dir_dict)
-                play_df = None
-                ###############
-                head_vs_body = compare_rotation(df_list=o_dir_list, params=params)
-                risk_score = score(df_list=head_vs_body)
-
-                weighted_score = (risk_score['score'] * risk_score['timesum']).sum() / risk_score['timesum'].sum()
-                avg_score = risk_score['score'].mean()
-
-                print(risk_score['score'].mean())
-                print(weighted_score)
-
-                score_output.write(f'{play},{avg_score},{weighted_score}\n')
-    score_output.close()
-    return None
 #  CALC GROUPMETRICS END ------------------------------------------------------------------------
 
 
