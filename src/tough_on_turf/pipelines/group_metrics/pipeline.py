@@ -1,5 +1,5 @@
 from kedro.pipeline import Pipeline, node
-from .nodes import create_bodypart_df_list, calc_metrics, compare_rotation, score
+from .nodes import create_bodypart_df_list, calc_metrics
 
 
 def create_pipeline(**kwargs):
