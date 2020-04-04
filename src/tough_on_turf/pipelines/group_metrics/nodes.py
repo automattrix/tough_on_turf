@@ -453,15 +453,6 @@ def calc_metrics(df_csv_list, params):
             player = Player(csv_path=player_file[1], params=params)
             player.metrics()
 
-#  CALC GROUPMETRICS END ------------------------------------------------------------------------
-
-
-#  CALC COMPARE START ------------------------------------------------------------------------
-
-# I'm so sorry I'm making another database function instead of making a generic database function like I should
-# But here we are
-# If you're reading this, I promise I'll clean up this code before I call this project complete
-
 
 def connect_db_compare(params):
     con = sqlite3.connect(params['db_path_compare'])
@@ -560,74 +551,3 @@ def write_to_db(params, groupvalue, dir, num_values, d):
         cur.execute(f"INSERT OR IGNORE INTO t_overlap_{d} VALUES (NULL, ?, ?)", parameters)
         con.commit()
         current_value += 1
-
-
-def compare_rotation(df_list, params):
-
-    print("Comparing body and head rotation")
-    # TODO sort by fastest direction change per sec
-    # TODO sort by biggest change in direction
-    # TODO sort by longest change in direction
-
-    if os.path.exists(params['db_path_compare']):
-        clear_db_compare(params)
-    else:
-        create_tables_compare(params)
-
-    # TODO create a function that determines whether or not part of a body/head dir group overlaps with another group
-    # d1 head
-    d1 = df_list[0]
-    # d2 body
-    d2 = df_list[1]
-
-    # I need the ID as a column, so reset the index
-    d1['data'].reset_index(inplace=True)
-    d2['data'].reset_index(inplace=True)
-
-    # print(d1['data'].head())
-    # print(d2['data'].head())
-    # Find number of values for each group where head and body were moving in the same direction
-    # First write values to dtabase for each group
-    d1['data'][['id', 'direction', 'num_values']].apply(lambda x: write_to_db(
-        params=params, d='d1', groupvalue=x['id'], dir=x['direction'], num_values=x['num_values']), axis=1)
-
-    d2['data'][['id', 'direction', 'num_values']].apply(lambda x: write_to_db(
-        params=params, d='d2', groupvalue=x['id'], dir=x['direction'], num_values=x['num_values']), axis=1)
-
-    # Now read back the values and compare
-    # d1 head orientation
-    d1['data']['overlap'] = d1['data'][['id']].apply(
-        lambda x: read_joined_values(params=params, d='d1', group=x['id']), axis=1
-    )
-    d1['data']['overlap_pct'] = (d1['data']['overlap'] / d1['data']['num_values']) * 100
-
-    # d2 body orientation
-    # Leaning towards d2 (body) orientation being weighted more than d1, as the body generates more momentum
-    d2['data']['overlap'] = d2['data'][['id']].apply(lambda x: read_joined_values(
-        params=params, d='d2', group=x['id']), axis=1
-                                                     )
-
-    d2['data']['overlap_pct'] = (d2['data']['overlap'] / d2['data']['num_values']) * 100
-
-
-    # Temporary output to csv
-    # d2['data'].to_csv('./test_compare_d2.csv')
-    return d1, d2
-#  CALC COMPARE END ------------------------------------------------------------------------
-
-
-#  CALC RISK START ------------------------------------------------------------------------
-def score(df_list):
-    # Temporarily manually specifying the 'dir' df, instead of orientation df
-    # Will move this to parameters settings soon
-    df = df_list[1]['data']
-
-    # arbitrary risk score
-    df['score'] = ((df['dirvalue'] + df['vel_avg'] + df['vel_avg_change']) / df['timesum']) + \
-        (df['rel_ang_diff_change'] / df['timesum']) + \
-        ((df['rel_ang_diff'] - abs(df['rel_ang_diff_change'])) / df['timesum'])
-    # print("RISKY")
-    # print(df.head())
-    return df
-#  CALC RISK END ------------------------------------------------------------------------
-
