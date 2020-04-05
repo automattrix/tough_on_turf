@@ -314,7 +314,7 @@ class Player:
         return unique_playkeys
 
     def series_test(self, d, groupvalue, dir, num_values):
-        print(groupvalue)
+        #print(groupvalue)
         test = np.full((1, num_values), 1, dtype=int)
         s = pd.Series(test[0]).to_frame(name=f'{d}_dir')
         s[f'current_group_{d}'] = groupvalue
@@ -382,17 +382,17 @@ class Player:
 
         # TEST SERIES TO REPLACE WRITE_TO_DB
 
-        print(self.d_one_df.keys())
-        print(self.d_one_df)
+        # print(self.d_one_df.keys())
+        # print(self.d_one_df)
         d1['data'][['id', 'direction', 'num_values']].apply(lambda x: self.series_test(
             d='d1', groupvalue=x['id'], dir=x['direction'], num_values=x['num_values']), axis=1)
 
-        print(self.d_one_df.head())
+        # print(self.d_one_df.head())
 
         d2['data'][['id', 'direction', 'num_values']].apply(lambda x: self.series_test(
             d='d2', groupvalue=x['id'], dir=x['direction'], num_values=x['num_values']), axis=1)
 
-        print(self.d_two_df.head())
+        # print(self.d_two_df.head())
 
         # Find number of values for each group where head and body were moving in the same direction
         # First write values to database for each group
@@ -409,32 +409,40 @@ class Player:
         self.d_two_df.reset_index(inplace=True)
         self.d_two_df.drop(['index'], inplace=True, axis=1)
 
-        print(self.d_one_df.head(40))
-        print(self.d_two_df.head(40))
+        # print(self.d_one_df)
+        # print(self.d_two_df.head())
 
         tmp_combined_df = pd.concat([self.d_one_df, self.d_two_df], axis=1, sort=False)
-        print(tmp_combined_df.head())
+        # print(tmp_combined_df.head())
 
         # TEST COMPARE FROM DF
-        tmp_combined_df['overlap'] = tmp_combined_df.apply(
+        d1_overlap = tmp_combined_df.apply(
            lambda x: self.test_read_joined_values(df=tmp_combined_df, d='d1', group=x['current_group_d1']), axis=1
         )
-        print(tmp_combined_df['overlap'])
-        #print(d1['data']['overlap'])
-        exit()
+        d2_overlap = tmp_combined_df.apply(
+            lambda x: self.test_read_joined_values(df=tmp_combined_df, d='d2', group=x['current_group_d2']), axis=1
+        )
+
+        d1['data']['overlap'] = d1_overlap
+        d2['data']['overlap'] = d2_overlap
+
+        # ---------------------------------------
         # Now read back the values and compare
         # d1 head orientation
         # TODO THIS IS DEFINITELY CAUSING IO BOTTLENECK
-        d1['data']['overlap'] = d1['data'][['id']].apply(
-            lambda x: read_joined_values(params=self.params, d='d1', group=x['id']), axis=1
-        )
-        d1['data']['overlap_pct'] = (d1['data']['overlap'] / d1['data']['num_values']) * 100
+        # d1['data']['overlap'] = d1['data'][['id']].apply(
+        #     lambda x: read_joined_values(params=self.params, d='d1', group=x['id']), axis=1
+        # )
+        # d1['data']['overlap_pct'] = (d1['data']['overlap'] / d1['data']['num_values']) * 100
 
         # d2 body orientation
         # Leaning towards d2 (body) orientation being weighted more than d1, as the body generates more momentum
-        d2['data']['overlap'] = d2['data'][['id']].apply(lambda x: read_joined_values(
-            params=self.params, d='d2', group=x['id']), axis=1)
+        # d2['data']['overlap'] = d2['data'][['id']].apply(lambda x: read_joined_values(
+        #    params=self.params, d='d2', group=x['id']), axis=1)
 
+        # ---------------------------------------
+
+        d1['data']['overlap_pct'] = (d1['data']['overlap'] / d1['data']['num_values']) * 100
         d2['data']['overlap_pct'] = (d2['data']['overlap'] / d2['data']['num_values']) * 100
 
         return d1, d2
@@ -524,6 +532,7 @@ class Player:
             avg_score = risk_score['score'].mean()
             print(risk_score['score'].mean())
             print(weighted_score)
+
             score_output.write(f'{play},{avg_score},{weighted_score}\n')
         score_output.close()
 
