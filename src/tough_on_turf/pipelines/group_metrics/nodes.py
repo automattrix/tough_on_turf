@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import sqlite3
 import os
 import re
@@ -280,6 +281,19 @@ def _player_csv_dict(df_csv_list):
     return bodypart_dict
 
 
+# def write_to_db(params, groupvalue, dir, num_values, d):
+#   CREATE TABLE t_overlap_d1 (
+#         id INTEGER PRIMARY KEY AUTOINCREMENT,
+#         group_value integer,
+#         d1_dir text)"""
+
+#  group_sql_d2 = """
+#         CREATE TABLE t_overlap_d2 (
+#             id INTEGER PRIMARY KEY AUTOINCREMENT,
+#             group_value integer,
+#             d2_dir text)"""
+
+
 class Player:
     def __init__(self, csv_path, params):
         self.player_data_path = csv_path
@@ -287,6 +301,8 @@ class Player:
         self.playerkey = self.player_data['PlayerKey'].iloc[0]
         self.current_group = 0
         self.params = params
+        self.d_one_df = pd.DataFrame()
+        self.d_two_df = pd.DataFrame()
 
     def load_df(self):
         df = pd.read_csv(self.player_data_path)
@@ -296,6 +312,46 @@ class Player:
         print("Calculating playkeys")
         unique_playkeys = self.player_data['PlayKey'].unique()
         return unique_playkeys
+
+    def series_test(self, d, groupvalue, dir, num_values):
+        print(groupvalue)
+        test = np.full((1, num_values), 1, dtype=int)
+        s = pd.Series(test[0]).to_frame(name=f'{d}_dir')
+        s[f'current_group_{d}'] = groupvalue
+        s[f'{d}_dir'] = dir
+
+        if d == 'd1':
+            self.d_one_df = self.d_one_df.append(s)
+        elif d == 'd2':
+            self.d_two_df = self.d_two_df.append(s)
+        else:
+            print("nope")
+            exit()
+
+    def test_read_joined_values(self, df, d, group):
+        # group_value d1_dir  group_value d2_dir
+        # id
+        # 1        331469   left       331496   left
+        # 2        331469   left       331496   left
+        # 3        331469   left       331496   left
+
+        if d == 'd1':
+            otherkey = 'd2'
+        elif d == 'd2':
+            otherkey = 'd1'
+        else:
+            exit("Invalid Key")
+
+        tmp_df = df.loc[df[f'current_group_{d}'] == group]
+        tmp_df = tmp_df.copy()
+        tmp_df['compare'] = tmp_df[['d1_dir', 'd2_dir']].apply(
+            lambda x: compare_joined_values(a=x[f'{d}_dir'], b=x[f'{otherkey}_dir']), axis=1)
+
+        same_df = tmp_df.loc[tmp_df['compare'] == 'same']
+        overlap_dir = len(same_df.index)
+        #print("AHHHHH")
+        #print(overlap_dir)
+        return overlap_dir
 
     def calc_groups(self, current_direction, next_direction):
 
@@ -324,14 +380,48 @@ class Player:
         d1['data'].reset_index(inplace=True)
         d2['data'].reset_index(inplace=True)
 
+        # TEST SERIES TO REPLACE WRITE_TO_DB
+
+        print(self.d_one_df.keys())
+        print(self.d_one_df)
+        d1['data'][['id', 'direction', 'num_values']].apply(lambda x: self.series_test(
+            d='d1', groupvalue=x['id'], dir=x['direction'], num_values=x['num_values']), axis=1)
+
+        print(self.d_one_df.head())
+
+        d2['data'][['id', 'direction', 'num_values']].apply(lambda x: self.series_test(
+            d='d2', groupvalue=x['id'], dir=x['direction'], num_values=x['num_values']), axis=1)
+
+        print(self.d_two_df.head())
+
         # Find number of values for each group where head and body were moving in the same direction
         # First write values to database for each group
-        d1['data'][['id', 'direction', 'num_values']].apply(lambda x: write_to_db(
-            params=self.params, d='d1', groupvalue=x['id'], dir=x['direction'], num_values=x['num_values']), axis=1)
+        # d1['data'][['id', 'direction', 'num_values']].apply(lambda x: write_to_db(
+        #     params=self.params, d='d1', groupvalue=x['id'], dir=x['direction'], num_values=x['num_values']), axis=1)
+        #
+        # d2['data'][['id', 'direction', 'num_values']].apply(lambda x: write_to_db(
+        #     params=self.params, d='d2', groupvalue=x['id'], dir=x['direction'], num_values=x['num_values']), axis=1)
 
-        d2['data'][['id', 'direction', 'num_values']].apply(lambda x: write_to_db(
-            params=self.params, d='d2', groupvalue=x['id'], dir=x['direction'], num_values=x['num_values']), axis=1)
+        # print(d1['data'][['id', 'direction', 'num_values']].head())
+        # print(d2['data'][['id', 'direction', 'num_values']].head())
+        self.d_one_df.reset_index(inplace=True)
+        self.d_one_df.drop(['index'], inplace=True, axis=1)
+        self.d_two_df.reset_index(inplace=True)
+        self.d_two_df.drop(['index'], inplace=True, axis=1)
 
+        print(self.d_one_df.head(40))
+        print(self.d_two_df.head(40))
+
+        tmp_combined_df = pd.concat([self.d_one_df, self.d_two_df], axis=1, sort=False)
+        print(tmp_combined_df.head())
+
+        # TEST COMPARE FROM DF
+        tmp_combined_df['overlap'] = tmp_combined_df.apply(
+           lambda x: self.test_read_joined_values(df=tmp_combined_df, d='d1', group=x['current_group_d1']), axis=1
+        )
+        print(tmp_combined_df['overlap'])
+        #print(d1['data']['overlap'])
+        exit()
         # Now read back the values and compare
         # d1 head orientation
         # TODO THIS IS DEFINITELY CAUSING IO BOTTLENECK
@@ -527,7 +617,8 @@ def read_joined_values(params, d, group):
         f"JOIN t_overlap_{otherkey} b ON a.id = b.id WHERE a.group_value = {group} ORDER BY a.id asc;"
 
     joined_values_df = pd.read_sql(sql=read_sql, con=con, index_col='id')
-
+    print(joined_values_df.head())
+    exit()
     joined_values_df['compare'] = joined_values_df[['d1_dir', 'd2_dir']].apply(
         lambda x: compare_joined_values(a=x[f'{d}_dir'], b=x[f'{otherkey}_dir']), axis=1)
 
