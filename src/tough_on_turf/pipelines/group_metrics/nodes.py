@@ -1,10 +1,6 @@
 import pandas as pd
 import numpy as np
-import sqlite3
-import os
 import re
-
-# start here
 
 
 def create_bodypart_df_list(csv_list):
@@ -12,7 +8,7 @@ def create_bodypart_df_list(csv_list):
     return df_list
 
 
-#  CALC SPEED ------------------------------------------------------------------------
+#  CALC SPEED
 def calc_speed(df):
     unique_velocities = df['pos_neg_vel'].unique()
     avg_total_vel = df['velocity'].mean()
@@ -42,206 +38,6 @@ def calc_speed(df):
         tmp_dict[vel].update({"max_vel_change": max_velocity_change})
 
     return tmp_dict
-#  CALC SPEED END ------------------------------------------------------------------------
-
-#  CALC GROUPMETRICS START ------------------------------------------------------------------------
-
-
-def connect_db_group(params):
-    con = sqlite3.connect(params['db_path_group'])
-    return con
-
-
-def create_table_group(params):
-    con = connect_db_group(params)
-    cur = con.cursor()
-    group_sql = """
-    CREATE TABLE dirgroups (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        groupvalue integer,
-        dirtype text)"""
-    cur.execute(group_sql)
-    con.close()
-
-
-# TODO rename function and db table to reflect what is being written
-def create_table_dirchange(params):
-    con = connect_db_group(params)
-    cur = con.cursor()
-    group_sql = """
-        CREATE TABLE group_metrics (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        dirvalue float,
-        dirtype text,
-        timesum float,
-        num_values int,
-        direction text,
-        rel_ang_diff_start float,
-        rel_ang_diff_end float,
-        rel_ang_diff_change float,
-        rel_ang_min float,
-        rel_ang_max float,
-        rel_ang_diff float,
-        vel_avg float,
-        vel_avg_change float,
-        vel_min float,
-        vel_max float,
-        vel_change_min float,
-        vel_change_max float
-        )"""
-    cur.execute(group_sql)
-    con.commit()
-    con.close()
-
-
-def write_dir_change(params, dir_value, dirtype, timesum, num_values, direction, rel_ang_diff_start, rel_ang_diff_end,
-                     rel_ang_change, rel_ang_min, rel_ang_max, rel_ang_diff, vel_avg, vel_avg_change, vel_min, vel_max,
-                     vel_change_min, vel_change_max):  # TODO make a generic sql write function UGH DO IT ALREADY
-    insert_value = float(dir_value)
-    con = connect_db_group(params)
-    cur = con.cursor()
-
-    parameters = (insert_value, dirtype, timesum, num_values, direction, rel_ang_diff_start, rel_ang_diff_end,
-                  rel_ang_change, rel_ang_min, rel_ang_max, rel_ang_diff, vel_avg, vel_avg_change, vel_min, vel_max,
-                  vel_change_min, vel_change_max)
-    cur.execute("INSERT OR IGNORE "
-                "INTO group_metrics "
-                "VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", parameters)
-
-    con.commit()
-    con.close()
-
-
-def write_current_group(params, group_value, direction_type):
-    insert_value = int(group_value)
-    con = connect_db_group(params)
-    cur = con.cursor()
-    parameters = (insert_value, direction_type)
-    cur.execute("INSERT OR IGNORE INTO dirgroups VALUES (NULL, ?, ?)", parameters)
-
-    con.commit()
-    con.close()
-
-
-# TODO one more DB thing to remove
-def read_dirchange(params):
-    con = connect_db_group(params)
-    read_sql = "select id, dirvalue, dirtype, timesum, num_values, direction, rel_ang_diff_start, " \
-               "rel_ang_diff_end, rel_ang_diff_change, rel_ang_min, rel_ang_max, rel_ang_diff, vel_avg, " \
-               "vel_avg_change, vel_min, vel_max, vel_change_min, vel_change_max " \
-               "FROM group_metrics " \
-               "ORDER BY id asc;"
-    current_group_df = pd.read_sql(sql=read_sql, con=con, index_col='id')
-
-    return current_group_df
-
-
-def read_current_group(params):
-    con = connect_db_group(params)
-    cur = con.cursor()
-    read_sql = "select id, groupvalue, dirtype from dirgroups ORDER BY id desc LIMIT 1;"
-    cur.execute(read_sql)
-    current_group = cur.fetchone()
-    # print(current_group)
-    return current_group
-
-
-def clear_db_group(params):
-    con = connect_db_group(params)
-    cur = con.cursor()
-    delete_dirgroups = "DELETE FROM dirgroups;"
-    cur.execute(delete_dirgroups)
-    con.commit()
-
-    delete_dirchange = "DELETE FROM group_metrics;"
-    cur.execute(delete_dirchange)
-    con.commit()
-
-    delete_dirgroup_increment = "delete from sqlite_sequence where name='dirgroup';"
-    delete_dirchange_increment = "delete from sqlite_sequence where name='dir_change';"
-    cur.execute(delete_dirgroup_increment)
-    cur.execute(delete_dirchange_increment)
-    con.commit()
-    con.close()
-
-
-# TODO this part is really slow
-def calc_groups(params, current_direction, next_direction, dfkey):
-    tmp_group = read_current_group(params)
-
-    # Get current group value from database
-    current_group = int(tmp_group[1])
-
-    # If player direction has not changed, use the same group value
-    # Else, create new group value
-    if current_direction == next_direction:
-        return current_group
-    else:
-        next_group = current_group + 1
-        write_current_group(params=params, group_value=next_group, direction_type=dfkey)
-        return next_group
-
-
-# TODO move this to pandas instead of writing to DB
-def calc_dir_change(params, groupdf, dfkey):
-    # TODO rename function to reflect calculations inside -- not just direction changes
-    df = groupdf
-    group_direction = df['direction_shift'].iloc[0]
-    time_sum = df['time_interval'].sum()
-    num_measurements = len(df.index)
-
-    # Calculate change in direction
-    start_dir = df[dfkey].iloc[0]
-    end_dir = df[dfkey].iloc[-1]
-    dir_change = abs(start_dir - end_dir)
-
-    # Calculate change in relative angle between head and body
-    relative_angle_diff_start = df['head_v_body_diff'].iloc[0]
-    relative_angle_diff_end = df['head_v_body_diff'].iloc[-1]
-    relative_angle_diff_change = (relative_angle_diff_end - relative_angle_diff_start)
-
-    # Calculate difference between min and max relative angle -- note head & body don't always line up
-    relative_angle_min = df['head_v_body_diff'].min()
-    relative_angle_max = df['head_v_body_diff'].max()
-    relative_angle_diff = abs(relative_angle_max - relative_angle_min)  # Largest difference in angle between body, head
-
-    # Calculate velocity
-    vel_avg = df['velocity'].mean()
-    vel_avg_change = df['velocity_change'].mean()
-
-    vel_min = df['velocity'].min()
-    vel_max = df['velocity'].max()
-
-    vel_change_min = df['velocity_change'].min()
-    vel_change_max = df['velocity_change'].max()
-
-    # tmp_df = pd.DataFrame
-    # tmp_df['dir_value'] = dir_change
-    # tmp_df['dirtype'] = dfkey
-    # tmp_df['timesum'] = time_sum
-    # tmp_df['num_values'] = num_measurements
-    # tmp_df['direction'] = group_direction
-    # tmp_df['rel_ang_diff_start'] = relative_angle_diff_start
-    # tmp_df['rel_ang_diff_end'] = relative_angle_diff_end
-    # tmp_df['rel_ang_change'] = relative_angle_diff_change
-    # tmp_df['rel_ang_min'] = relative_angle_min
-    # tmp_df['rel_ang_max'] = relative_angle_max
-    # tmp_df['rel_ang_diff'] = relative_angle_diff
-    # tmp_df['vel_avg'] = vel_avg
-    # tmp_df['vel_avg_change'] = vel_avg_change
-    # tmp_df['vel_min'] = vel_min
-    # tmp_df['vel_max'] = vel_max
-    # tmp_df['vel_change_min'] = vel_change_min
-    # tmp_df['vel_change_max'] = vel_change_max
-
-    #self.dir_df = self.dir_df.append(tmp_df)
-    #return tmp_df
-    write_dir_change(params=params, dir_value=dir_change, dirtype=dfkey, timesum=time_sum, num_values=num_measurements,
-                     direction=group_direction, rel_ang_diff_start=relative_angle_diff_start,
-                     rel_ang_diff_end=relative_angle_diff_end, rel_ang_change=relative_angle_diff_change,
-                     rel_ang_min=relative_angle_min, rel_ang_max=relative_angle_max, rel_ang_diff=relative_angle_diff,
-                     vel_avg=vel_avg, vel_avg_change=vel_avg_change, vel_min=vel_min, vel_max=vel_max,
-                     vel_change_min=vel_change_min, vel_change_max=vel_change_max)
 
 
 def calc_pct_of_max(dir_changes, maxdir, maxduration):
@@ -284,7 +80,7 @@ def calc_angle_diff(o, direction):
         angle_diff = 360 - tmp_angle_diff
     else:
         angle_diff = tmp_angle_diff
-    #
+
     return angle_diff
 
 
@@ -302,19 +98,6 @@ def _player_csv_dict(df_csv_list):
         bodypart_dict[body_part] = df
 
     return bodypart_dict
-
-
-# def write_to_db(params, groupvalue, dir, num_values, d):
-#   CREATE TABLE t_overlap_d1 (
-#         id INTEGER PRIMARY KEY AUTOINCREMENT,
-#         group_value integer,
-#         d1_dir text)"""
-
-#  group_sql_d2 = """
-#         CREATE TABLE t_overlap_d2 (
-#             id INTEGER PRIMARY KEY AUTOINCREMENT,
-#             group_value integer,
-#             d2_dir text)"""
 
 
 class Player:
@@ -338,7 +121,6 @@ class Player:
         return unique_playkeys
 
     def series_test(self, d, groupvalue, dir, num_values):
-        #print(groupvalue)
         test = np.full((1, num_values), 1, dtype=int)
         s = pd.Series(test[0]).to_frame(name=f'{d}_dir')
         s[f'current_group_{d}'] = groupvalue
@@ -373,15 +155,13 @@ class Player:
 
         same_df = tmp_df.loc[tmp_df['compare'] == 'same']
         overlap_dir = len(same_df.index)
-        #print("AHHHHH")
-        #print(overlap_dir)
+
         return overlap_dir
 
-    # TODO move this to pandas instead of writing to DB
     def calc_dir_change(self, params, groupdf, dfkey):
         # TODO rename function to reflect calculations inside -- not just direction changes
         df = groupdf
-        #print(df.head())
+
         group_direction = df['direction_shift'].iloc[0]
         time_sum = df['time_interval'].sum()
         num_measurements = len(df.index)
@@ -405,30 +185,10 @@ class Player:
         # Calculate velocity
         vel_avg = df['velocity'].mean()
         vel_avg_change = df['velocity_change'].mean()
-
         vel_min = df['velocity'].min()
         vel_max = df['velocity'].max()
-
         vel_change_min = df['velocity_change'].min()
         vel_change_max = df['velocity_change'].max()
-
-        # s_dir_change = pd.Series(dir_change)
-        # s_dfkey = pd.Series(dfkey)
-        # s_time_sum = pd.Series(time_sum)
-        # s_num_measurements = pd.Series(num_measurements)
-        # s_group_direction = pd.Series(group_direction)
-        # s_relative_angle_diff_start = pd.Series(relative_angle_diff_start)
-        #
-        # s_dir_change = pd.Series(dir_change)
-        # s_dir_change = pd.Series(dir_change)
-        # s_dir_change = pd.Series(dir_change)
-        # s_dir_change = pd.Series(dir_change)
-        # s_dir_change = pd.Series(dir_change)
-        # s_dir_change = pd.Series(dir_change)
-        # s_dir_change = pd.Series(dir_change)
-        # s_dir_change = pd.Series(dir_change)
-        # s_dir_change = pd.Series(dir_change)
-        # s_dir_change = pd.Series(dir_change)
 
         tmp_df = pd.DataFrame()
         tmp_df['dirvalue'] = pd.Series(dir_change)
@@ -449,22 +209,7 @@ class Player:
         tmp_df['vel_change_min'] = pd.Series(vel_change_min)
         tmp_df['vel_change_max'] = pd.Series(vel_change_max)
 
-        #print(tmp_df)
-        #print(dir_change)
-        #exit()
-        #tmp_df.drop([''])
         self.dir_df = self.dir_df.append(tmp_df)
-
-    #def read_dirchange(self, params):
-    #    con = connect_db_group(params)
-    #    read_sql = "select id, dirvalue, dirtype, timesum, num_values, direction, rel_ang_diff_start, " \
-    #               "rel_ang_diff_end, rel_ang_diff_change, rel_ang_min, rel_ang_max, rel_ang_diff, vel_avg, " \
-    #               "vel_avg_change, vel_min, vel_max, vel_change_min, vel_change_max " \
-    #               "FROM group_metrics " \
-    #               "ORDER BY id asc;"
-    #    current_group_df = pd.read_sql(sql=read_sql, con=con, index_col='id')
-
-    #    return current_group_df
 
     def calc_groups(self, current_direction, next_direction):
 
@@ -479,11 +224,6 @@ class Player:
     def compare_rotation(self, df_list):
         print("Comparing body and head rotation")
 
-        # if os.path.exists(self.params['db_path_compare']):
-        #     clear_db_compare(self.params)
-        # else:
-        #     create_tables_compare(self.params)
-
         # d1 head
         d1 = df_list[0]
         # d2 body
@@ -495,43 +235,22 @@ class Player:
 
         d2['data'].reset_index(inplace=True)
         d2['data'].rename(columns={'index': 'id'}, inplace=True)
-        # print(d1['data'].head())
-        # TEST SERIES TO REPLACE WRITE_TO_DB
 
-        # print(self.d_one_df.keys())
-        # print(self.d_one_df)
         d1['data'][['id', 'direction', 'num_values']].apply(lambda x: self.series_test(
             d='d1', groupvalue=x['id'], dir=x['direction'], num_values=x['num_values']), axis=1)
-
-        # print(self.d_one_df.head())
 
         d2['data'][['id', 'direction', 'num_values']].apply(lambda x: self.series_test(
             d='d2', groupvalue=x['id'], dir=x['direction'], num_values=x['num_values']), axis=1)
 
-        # print(self.d_two_df.head())
-
-        # Find number of values for each group where head and body were moving in the same direction
-        # First write values to database for each group
-        # d1['data'][['id', 'direction', 'num_values']].apply(lambda x: write_to_db(
-        #     params=self.params, d='d1', groupvalue=x['id'], dir=x['direction'], num_values=x['num_values']), axis=1)
-        #
-        # d2['data'][['id', 'direction', 'num_values']].apply(lambda x: write_to_db(
-        #     params=self.params, d='d2', groupvalue=x['id'], dir=x['direction'], num_values=x['num_values']), axis=1)
-
-        # print(d1['data'][['id', 'direction', 'num_values']].head())
-        # print(d2['data'][['id', 'direction', 'num_values']].head())
         self.d_one_df.reset_index(inplace=True)
         self.d_one_df.drop(['index'], inplace=True, axis=1)
         self.d_two_df.reset_index(inplace=True)
         self.d_two_df.drop(['index'], inplace=True, axis=1)
 
-        # print(self.d_one_df)
-        # print(self.d_two_df.head())
-
         tmp_combined_df = pd.concat([self.d_one_df, self.d_two_df], axis=1, sort=False)
-        # print(tmp_combined_df.head())
 
-        # TEST COMPARE FROM DF
+        # COMPARE FROM DF
+        # Temporarily only using d2 -- clean this up
         # d1_overlap = tmp_combined_df.apply(
         #    lambda x: self.test_read_joined_values(df=tmp_combined_df, d='d1', group=x['current_group_d1']), axis=1
         # )
@@ -541,22 +260,6 @@ class Player:
 
         # d1['data']['overlap'] = d1_overlap
         d2['data']['overlap'] = d2_overlap
-
-        # ---------------------------------------
-        # Now read back the values and compare
-        # d1 head orientation
-        # TODO THIS IS DEFINITELY CAUSING IO BOTTLENECK
-        # d1['data']['overlap'] = d1['data'][['id']].apply(
-        #     lambda x: read_joined_values(params=self.params, d='d1', group=x['id']), axis=1
-        # )
-        # d1['data']['overlap_pct'] = (d1['data']['overlap'] / d1['data']['num_values']) * 100
-
-        # d2 body orientation
-        # Leaning towards d2 (body) orientation being weighted more than d1, as the body generates more momentum
-        # d2['data']['overlap'] = d2['data'][['id']].apply(lambda x: read_joined_values(
-        #    params=self.params, d='d2', group=x['id']), axis=1)
-
-        # ---------------------------------------
 
         # Temporarily commenting this out as I'm using d2 instead
         # d1['data']['overlap_pct'] = (d1['data']['overlap'] / d1['data']['num_values']) * 100
@@ -589,28 +292,14 @@ class Player:
             o_dir_list = []
             print(play)
             for dfkey in self.params['df_keys']:
-
-                # if os.path.exists(self.params['db_path_group']):
-                #     clear_db_group(self.params)
-                #     write_current_group(params=self.params, group_value=0, direction_type=dfkey)
-                # else:
-                #     # TODO make a db init function to create all the required tables
-                #     create_table_group(self.params)
-                #     create_table_dirchange(self.params)
-                #     write_current_group(params=self.params, group_value=0, direction_type=dfkey)
-
-                # print(f"Calculating Rotation for {dfkey}")
                 df = play_df.copy()
-                # print(df.head())
 
                 # Calculate relative difference in degrees between head and body orientation
-                # print("head v body")
                 df['head_v_body_diff'] = df[['o', 'dir']].apply(lambda x: calc_angle_diff(
                     o=x['o'], direction=x['dir']), axis=1
                                                                 )
 
                 # Calculate difference in orientation between measurements
-                # print("delta")
                 df["delta"] = df[dfkey].diff().fillna(0)
 
                 # Calculate left of right change in direction
@@ -634,23 +323,7 @@ class Player:
                     group_df = df.loc[df['groups'] == group]
                     # Calculate change in direction and angles, and write to database
                     self.calc_dir_change(params=self.params, groupdf=group_df, dfkey=dfkey)
-                    #calc_dir_change(params=self.params, groupdf=group_df, dfkey=dfkey)
 
-                    #self.calc_dir_change(params=self.params, groupdf=group_df, dfkey=dfkey)
-                    #print(self.dir_df)
-
-
-
-                # Create self.dir_df
-                # dir_df_old = read_dirchange(params=self.params)
-                #  dirvalue dirtype  timesum  num_values  direction  rel_ang_diff_start  rel_ang_diff_end  ...  rel_ang_diff   vel_avg  vel_avg_change   vel_min   vel_max  vel_change_min  vel_change_max
-                # id                                                                                          ...
-                # 1      20.46       o      0.6           7       left              106.20            121.77  ...         15.57  1.009723    1.470804e-01  0.000000  1.280625   -1.144345e-01    1.280625e+00
-                # 2       0.00       o      0.1           1      right              121.64            121.64  ...          0.00  1.029563    1.414424e-13  1.029563  1.029563    1.414424e-13    1.414424e-13
-                # 3       0.00       o      0.1           1       left              121.63            121.63  ...          0.00  1.000000   -2.956301e-02  1.000000  1.000000   -2.956301e-02   -2.956301e-02
-                # print(dir_df_old.head())
-                # dir_df_old.to_csv('./test_dirdfold.csv')
-                # exit()
                 dir_df = self.dir_df.copy()
                 dir_df.reset_index(inplace=True,)
                 dir_df.drop(['index'], axis=1, inplace=True)
@@ -695,101 +368,8 @@ def calc_metrics(df_csv_list, params):
             player.metrics()
 
 
-def connect_db_compare(params):
-    con = sqlite3.connect(params['db_path_compare'])
-    return con
-
-
-def create_tables_compare(params):
-    con = connect_db_compare(params)
-    cur = con.cursor()
-    group_sql_d1 = """
-    CREATE TABLE t_overlap_d1 (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        group_value integer,
-        d1_dir text)"""
-    cur.execute(group_sql_d1)
-    con.commit()
-
-    group_sql_d2 = """
-        CREATE TABLE t_overlap_d2 (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            group_value integer,
-            d2_dir text)"""
-    cur.execute(group_sql_d2)
-    con.commit()
-    con.close()
-
-
-def clear_db_compare(params):
-    con = connect_db_compare(params)
-    cur = con.cursor()
-    delete_dirgroups_d1 = "DELETE FROM t_overlap_d1;"
-    delete_dirgroups_d2 = "DELETE FROM t_overlap_d2;"
-    cur.execute(delete_dirgroups_d1)
-    cur.execute(delete_dirgroups_d2)
-    con.commit()
-
-    delete_overlap_increment_d1 = "delete from sqlite_sequence where name='t_overlap_d1';"
-    delete_overlap_increment_d2 = "delete from sqlite_sequence where name='t_overlap_d2';"  # I'm sorry..I know..
-    cur.execute(delete_overlap_increment_d1)
-    cur.execute(delete_overlap_increment_d2)
-    con.commit()
-    con.close()
-
-
-def read_groupvalues(params, d):
-    con = connect_db_compare(params)
-    read_sql = f"select id, group_value, d1_dir FROM t_overlap_{d} ORDER BY id asc;"
-    current_group_val = pd.read_sql(sql=read_sql, con=con, index_col='id')
-    print(current_group_val)
-
-    #return current_group_val
-
-
 def compare_joined_values(a, b):
     if a == b:
         return "same"
     else:
         return "opposite"
-
-
-def read_joined_values(params, d, group):
-    if d == 'd1':
-        otherkey = 'd2'
-    elif d == 'd2':
-        otherkey = 'd1'
-    else:
-        exit("Invalid Key")
-
-    con = connect_db_compare(params)
-
-    read_sql = f"select a.id as id, a.group_value, a.{d}_dir, b.group_value, b.{otherkey}_dir FROM t_overlap_{d} a " \
-        f"JOIN t_overlap_{otherkey} b ON a.id = b.id WHERE a.group_value = {group} ORDER BY a.id asc;"
-
-    joined_values_df = pd.read_sql(sql=read_sql, con=con, index_col='id')
-    print(joined_values_df.head())
-    exit()
-    joined_values_df['compare'] = joined_values_df[['d1_dir', 'd2_dir']].apply(
-        lambda x: compare_joined_values(a=x[f'{d}_dir'], b=x[f'{otherkey}_dir']), axis=1)
-
-    same_df = joined_values_df.loc[joined_values_df['compare'] == 'same']
-    overlap_dir = len(same_df.index)
-
-    return overlap_dir
-
-
-def write_to_db(params, groupvalue, dir, num_values, d):
-    current_value = 1
-
-    con = connect_db_compare(params)
-    cur = con.cursor()
-
-    while current_value < (num_values+1):
-        current_group = groupvalue
-        direction = dir
-
-        parameters = (current_group, direction)
-        cur.execute(f"INSERT OR IGNORE INTO t_overlap_{d} VALUES (NULL, ?, ?)", parameters)
-        con.commit()
-        current_value += 1
