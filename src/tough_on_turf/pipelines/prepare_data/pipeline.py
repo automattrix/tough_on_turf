@@ -12,13 +12,13 @@ def create_pipeline(**kwargs):
                 name="generate_h5",
             ),
             node(
-                func=prep_injury_data,  # writes to './data/02_intermediate/bodypart/bodypart_injury.csv'
+                func=prep_injury_data,
                 inputs=["injury_record", "params:prep_injury"],
                 outputs=None,
                 name="prep_injury_data",
             ),
             node(
-                func=generate_custom_csv,  # from bodypart_injury
+                func=generate_custom_csv,  # # writes to './data/02_intermediate/player_injury_csvs/bodypart/
                 inputs=["params:generate_custom_csv"],
                 outputs=None,
                 name="generate_custom_csv",
