@@ -1,6 +1,9 @@
 import pandas as pd
 import numpy as np
 import re
+import matplotlib.pyplot as plt
+import seaborn as sns
+
 
 
 def create_bodypart_df_list(csv_list):
@@ -98,6 +101,13 @@ def _player_csv_dict(df_csv_list):
         bodypart_dict[body_part] = df
 
     return bodypart_dict
+
+
+def compare_joined_values(a, b):
+    if a == b:
+        return "same"
+    else:
+        return "opposite"
 
 
 class Player:
@@ -351,6 +361,111 @@ class Player:
             score_output.write(f'{play},{avg_score},{weighted_score}\n')
         score_output.close()
 
+    def score_play_events(self):
+        # event_output = open(f'./data/02_intermediate/event_score_{self.playerkey}.csv', 'w')
+        # event_output.write('PlayKey, RiskScore, WeightedRiskScore\n')
+        print("calculating play events")
+
+        combined_play_df_list = []  # List for all plays
+        for play in self.playerkeys():
+            # Load the data for the play
+            play_df = self.player_data.loc[self.player_data['PlayKey'] == play]
+            print(play)
+
+            df = play_df.copy()
+            # print(df.keys())
+
+            # Add event to blank rows
+            df['event'].ffill(inplace=True)
+            df.dropna(inplace=True)  # important to drop AFTER ffill. Otherwise all rows missing an event are removed
+
+            # List for all events in the current play
+            tmp_event_df_list = []
+
+            unique_events = df['event'].unique()
+            for event in unique_events:
+                df_event = df.loc[df['event'] == event]
+
+                agg_df = _calc_event_aggregates(df=df_event)
+                tmp_event_df_list.append(agg_df)
+
+            # Combine all events
+            combined_df = pd.concat(tmp_event_df_list)
+            combined_df.reset_index(inplace=True)
+            combined_df.drop(['index'], axis=1, inplace=True)
+            # print(combined_df)
+            combined_play_df_list.append(combined_df)
+            # tmp_df_list = []
+
+        # Combine all plays (could span multiple games)
+        games_df = pd.concat(combined_play_df_list)
+        games_df.reset_index(inplace=True)
+        games_df.drop(['index'], axis=1, inplace=True)
+
+        # Add column to determine which game
+        games_df['game_key'] = games_df['playkey'].apply(_split_game)
+
+        # Calculate percentage of max efforts
+        games_df = _pct_effort_avg_vel(df=games_df)  # calc pct of max avg velocity
+
+        # Add injury, if injurede
+
+        print(games_df.head())
+        games_df = ''
+
+        # Testing
+        test = games_df.loc[games_df['game_key'] == "1"]
+        # grpahevents = game_df.pivot("event", "playkey", "vel_avg")
+        graphevents = test.pivot("event", "playkey", "pct_eff_vel_avg")
+        # f, ax = plt.subplots(figsize=(30, 35))
+        #sns.heatmap(graphevents, ax=ax, cmap='coolwarm', square=True, cbar=False)
+
+        grid_kws = {"height_ratios": (.9, .005), "hspace": .01}
+        f, (ax, cbar_ax) = plt.subplots(2, gridspec_kw=grid_kws)
+        ax = sns.heatmap(graphevents, ax=ax,
+                         cbar_ax=cbar_ax,
+                         cbar_kws={"orientation": "horizontal"},
+                         square=True, cmap='coolwarm')
+        # sns_heat = sns.heatmap(grpahevents, cmap='coolwarm')
+        # figure = sns_heat.get_figure()
+        f.savefig('./test_heat.png')
+        exit()
+
+
+def _pct_effort_avg_vel(df):
+    avg_vel_max = df['vel_avg'].max()
+    df['pct_eff_vel_avg'] = (df['vel_avg'] / avg_vel_max) * 100
+    return df
+
+
+def _split_game(playkey):
+    game_key = playkey.split('-')[1]
+    return game_key
+
+
+def _calc_event_aggregates(df):
+
+    agg_df = pd.DataFrame()
+    agg_df['playkey'] = pd.Series(df['PlayKey'].iloc[0])
+    agg_df['event'] = pd.Series(df['event'].iloc[0])
+    # Velocity
+    agg_df["vel_avg"] = pd.Series(df['velocity'].mean())
+    agg_df["vel_min"] = pd.Series(df['velocity'].min())
+    agg_df["vel_max"] = pd.Series(df['velocity'].max())
+
+    # Velocity Change
+    agg_df["vel_change_avg"] = pd.Series(df['velocity_change'].mean())
+    agg_df["vel_change_min"] = pd.Series(df['velocity_change'].min())
+    agg_df["vel_change_max"] = pd.Series(df['velocity_change'].max())
+
+    # Distance
+    agg_df["distance"] = pd.Series(df['distance'].sum())
+
+    # Time
+    agg_df["timesum"] = pd.Series(df['time_interval'].sum())
+
+    return agg_df
+
 
 def calc_metrics(df_csv_list, params):
 
@@ -365,11 +480,21 @@ def calc_metrics(df_csv_list, params):
         print(bodypart_list)  # ankle_list
         for player_file in df.itertuples():
             player = Player(csv_path=player_file[1], params=params)
-            player.metrics()
+            #player.metrics()
 
 
-def compare_joined_values(a, b):
-    if a == b:
-        return "same"
-    else:
-        return "opposite"
+def calc_events(df_csv_list, params):
+    print("Calculating play events")
+
+    df_dict = _player_csv_dict(df_csv_list=df_csv_list)
+
+    score_output = open('./data/02_intermediate/risk_score_tmp.csv', 'w')
+    score_output.write('PlayKey, RiskScore, WeightedRiskScore\n')
+    for bodypart_list, df in df_dict.items():
+
+        print(bodypart_list)  # ankle_list
+        for player_file in df.itertuples():
+            player = Player(csv_path=player_file[1], params=params)
+            player.score_play_events()
+
+
