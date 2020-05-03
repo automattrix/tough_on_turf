@@ -3,7 +3,7 @@ import numpy as np
 import re
 import matplotlib.pyplot as plt
 import seaborn as sns
-
+import os
 
 
 def create_bodypart_df_list(csv_list):
@@ -120,6 +120,7 @@ class Player:
         self.d_one_df = pd.DataFrame()
         self.d_two_df = pd.DataFrame()
         self.dir_df = pd.DataFrame()
+        self.games_df = pd.DataFrame()
 
     def load_df(self):
         df = pd.read_csv(self.player_data_path)
@@ -408,10 +409,7 @@ class Player:
         # Calculate percentage of max efforts
         games_df = _pct_effort_avg_vel(df=games_df)  # calc pct of max avg velocity
 
-        # Add injury, if injurede
-
-        print(games_df.head())
-        games_df = ''
+        self.games_df = games_df
 
         # Testing
         test = games_df.loc[games_df['game_key'] == "1"]
@@ -421,7 +419,7 @@ class Player:
         #sns.heatmap(graphevents, ax=ax, cmap='coolwarm', square=True, cbar=False)
 
         grid_kws = {"height_ratios": (.9, .005), "hspace": .01}
-        f, (ax, cbar_ax) = plt.subplots(2, gridspec_kw=grid_kws)
+        f, (ax, cbar_ax) = plt.subplots(2, gridspec_kw=grid_kws, figsize=(20,10))
         ax = sns.heatmap(graphevents, ax=ax,
                          cbar_ax=cbar_ax,
                          cbar_kws={"orientation": "horizontal"},
@@ -429,7 +427,69 @@ class Player:
         # sns_heat = sns.heatmap(grpahevents, cmap='coolwarm')
         # figure = sns_heat.get_figure()
         f.savefig('./test_heat.png')
-        exit()
+
+    # Determine if any of the playkeys overlap with an injury key
+    def analyze_injury(self, injury_keys, injury_record):
+        is_injured = list(set(self.playerkeys()).intersection(injury_keys))
+        print(is_injured)
+
+        injury_df = injury_record.copy()
+
+        if len(is_injured) > 0:  # there should only be
+            injury_play_df_list = []
+            drop_keys = ['PlayerKey', 'GameID', 'PlayKey']
+
+            for injury in is_injured:
+                df_tmp = self.games_df.loc[self.games_df['playkey'] == injury]
+                injury_row = injury_df.loc[injury_df['PlayKey'] == injury]
+                injury_row = injury_row.copy()
+                injury_row.drop(drop_keys, inplace=True, axis=1)
+                injury_row_keys = injury_row.keys()
+
+                # reset index before concat
+                df_tmp.reset_index(inplace=True)
+                injury_row.reset_index(inplace=True)
+
+                # Concat injury row as new columns to df_tmp
+                combined_df = pd.concat([df_tmp, injury_row], axis=1)
+                combined_df = combined_df.copy()
+                # Remove duplicate index
+                combined_df.drop(['index'], inplace=True, axis=1)
+                # Fill (copy) down injury values
+                combined_df[injury_row_keys] = combined_df[injury_row_keys].ffill()
+
+               # print(combined_df)
+
+                injury_play_df_list.append(combined_df)
+
+            if len(injury_play_df_list) > 1:
+                all_injuries = pd.concat(injury_play_df_list)
+            else:
+                all_injuries = injury_play_df_list[0]
+
+            print(all_injuries.head())
+            csv_out = './data/03_primary/injury_metrics.csv'
+            if os.path.exists(csv_out):
+                all_injuries.to_csv(csv_out, mode='a', index=False, header=False)
+            else:
+                all_injuries.to_csv(csv_out, index=False)
+
+            return all_injuries
+
+        else:
+            pass
+        # if match, concat ro
+        # w from injury record df
+
+
+def injury_keys(injuryrecord):
+    df_injury = injuryrecord.copy()
+    injury_keys = df_injury['PlayKey'].unique()
+    return injury_keys
+
+
+def _join_injury_record(df):
+    test = ''
 
 
 def _pct_effort_avg_vel(df):
@@ -483,18 +543,26 @@ def calc_metrics(df_csv_list, params):
             #player.metrics()
 
 
-def calc_events(df_csv_list, params):
+def calc_events(df_csv_list, injuryrecord, params):
     print("Calculating play events")
 
     df_dict = _player_csv_dict(df_csv_list=df_csv_list)
 
     score_output = open('./data/02_intermediate/risk_score_tmp.csv', 'w')
     score_output.write('PlayKey, RiskScore, WeightedRiskScore\n')
-    for bodypart_list, df in df_dict.items():
 
+    # Only some injuries were known to happen on a given play
+    # Remove those that have no known playkey
+    injury_record = injuryrecord.dropna()
+
+    for bodypart_list, df in df_dict.items():
+        # TODO Get all the players with injuries first, create a list of their playerkeys. Process separately
         print(bodypart_list)  # ankle_list
         for player_file in df.itertuples():
             player = Player(csv_path=player_file[1], params=params)
             player.score_play_events()
+            player.analyze_injury(injury_keys=injury_keys(injury_record), injury_record=injury_record)
+
+
 
 

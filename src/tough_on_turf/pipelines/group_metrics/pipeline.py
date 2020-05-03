@@ -19,7 +19,7 @@ def create_pipeline(**kwargs):
             # ),
             node(
                 func=calc_events,
-                inputs=["csv_paths_list", "params:calc_metrics"],
+                inputs=["csv_paths_list", "injury_record", "params:calc_metrics"],
                 outputs="o_dir_df_list",
                 name="calc_metrics",
             ),
