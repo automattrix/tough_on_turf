@@ -34,3 +34,7 @@ injury_record:
 risk_scores:
   type: CSVLocalDataSet
   filepath: /data/02_intermediate/risk_score_tmp.csv
+
+injury_metrics:
+  type: CSVLocalDataSet
+  filepath: './data/03_primary/injury_metrics.csv'
