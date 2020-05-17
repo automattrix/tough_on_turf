@@ -5,12 +5,12 @@ from .nodes import surface, surface_length, surface_bodypart_length_w_null, surf
 def create_pipeline(**kwargs):
     return Pipeline(
         [
-            # node(
-            #     func=surface,
-            #     inputs=["injury_record"],
-            #     outputs=None,
-            #     name="surface_graph",
-            # ),
+            node(
+                func=surface,
+                inputs=["injury_record"],
+                outputs=None,
+                name="surface_graph",
+            ),
             node(
                 func=surface_length,
                 inputs=["injury_record"],
