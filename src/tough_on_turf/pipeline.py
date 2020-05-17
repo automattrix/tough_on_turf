@@ -6,6 +6,7 @@ from kedro.pipeline import Pipeline
 
 from tough_on_turf.pipelines import prepare_data as p_d
 from tough_on_turf.pipelines import group_metrics as g_m
+from tough_on_turf.pipelines import visualize as v_p
 
 
 # Here you can define your data-driven pipeline by importing your functions
@@ -36,11 +37,14 @@ def create_pipelines(**kwargs) -> Dict[str, Pipeline]:
     """
     prepare_data_pipeline = p_d.create_pipeline()  # outputs list of "data/02_intermediate/bodypart_list" files
     group_metrics_pipeline = g_m.create_pipeline()
+    viz_pipeline = v_p.create_pipeline()
 
     return {
         "prepare_data": prepare_data_pipeline,
         "calc_group_metrics": group_metrics_pipeline,
-        "__default__": prepare_data_pipeline + group_metrics_pipeline,
+        "viz_pipeline": viz_pipeline,
+        "__default__": prepare_data_pipeline + group_metrics_pipeline + viz_pipeline,
+        # "__default__": prepare_data_pipeline + group_metrics_pipeline,
 
     }
 
