@@ -40,8 +40,10 @@ def surface_length(injuryrecord):
     f.suptitle("Instances of Days Missed by BodyPart and Playing Surface", fontsize=24)
     for x, key in enumerate(dm_keys):
         sns.barplot(data=df_injure_field, x='Surface', y=key, hue='Surface', palette=pal, ax=axes[x])
-        axes[x].set_ylabel(days_missed[x], fontsize=14)
-    # axes[0].set_ylabel("1+ Days ", fontsize=14)
+        axes[x].set_ylabel("Number of Players", fontsize=14)
+        axes[x].set_title(f"Missed {days_missed[x]}", fontsize=14)
+        if key is not dm_keys[-1]:
+            axes[x].legend_.remove()
     plt.savefig('./data/08_reporting/surface_length.png')
 
 
@@ -59,7 +61,8 @@ def surface_bodypart_length_w_null(injuryrecord):
 
     for x, key in enumerate(dm_keys):
         sns.barplot(data=df_injure_field, x='BodyPart', y=key, hue='Surface', palette=pal, ax=axes[x])
-        axes[x].set_ylabel(days_missed[x], fontsize=14)
+        axes[x].set_ylabel("Number of Players", fontsize=14)
+        axes[x].set_title(f"Missed {days_missed[x]}", fontsize=14)
         if key is not dm_keys[-1]:
             axes[x].legend_.remove()
 
@@ -79,7 +82,8 @@ def surface_bodypart_length(df, injuryrecord):
 
     for x, key in enumerate(dm_keys):
         sns.barplot(data=df_injure_field, x='BodyPart', y=key, hue='Surface', palette=pal, ax=axes[x])
-        axes[x].set_ylabel(days_missed[x], fontsize=14)
+        axes[x].set_ylabel("Number of Players", fontsize=14)
+        axes[x].set_title(f"Missed {days_missed[x]}", fontsize=14)
         if key is not dm_keys[-1]:
             axes[x].legend_.remove()
 
